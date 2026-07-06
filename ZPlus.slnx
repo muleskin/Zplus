@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZPlus.Admin/ZPlus.Admin.csproj" />
+    <Project Path="src/ZPlus.AdminCli/ZPlus.AdminCli.csproj" />
+    <Project Path="src/ZPlus.Client/ZPlus.Client.csproj" />
+    <Project Path="src/ZPlus.ClientCli/ZPlus.ClientCli.csproj" />
+    <Project Path="src/ZPlus.Server/ZPlus.Server.csproj" />
+    <Project Path="src/ZPlus.Shared/ZPlus.Shared.csproj" />
+  </Folder>
+</Solution>

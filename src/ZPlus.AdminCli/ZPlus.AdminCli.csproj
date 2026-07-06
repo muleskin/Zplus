@@ -7,7 +7,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>zplus-admin</AssemblyName>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- net8.0 for Windows; net10.0 for the Linux builds (see Makefile) -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>

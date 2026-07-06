@@ -4,14 +4,18 @@
     <ProjectReference Include="..\ZPlus.Shared\ZPlus.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.*" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.*" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>zplus-client</AssemblyName>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- net8.0 for Windows; net10.0 for the Linux builds (see Makefile) -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>

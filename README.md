@@ -23,25 +23,28 @@ and host controls.
 Each application publishes to **one self-contained binary** (all DLLs and the .NET runtime
 embedded — nothing to install on the target machine).
 
-**Windows** (GUI apps):
+**Windows** (net8.0 / net10.0-windows GUI apps):
 
 ```
-dotnet publish src/ZPlus.Server -c Release -o publish/server
+dotnet publish src/ZPlus.Server -c Release -f net8.0 -o publish/server
 dotnet publish src/ZPlus.Client -c Release -o publish/client
 dotnet publish src/ZPlus.Admin  -c Release -o publish/admin
 ```
 
 Copy `Z+ Server.exe`, `Z+ Client.exe`, and `Z+ Admin.exe` wherever you need them.
 
-**Linux** (server + console tools, into `publish/linux`):
+**Linux** (net10.0, into `publish/linux`) — use the `Makefile` at the repository root:
 
 ```
-dotnet publish src/ZPlus.Server    -c Release -r linux-x64 -o publish/linux/server
-dotnet publish src/ZPlus.ClientCli -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/linux/client
-dotnet publish src/ZPlus.AdminCli  -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/linux/admin
+make            # builds zplus-server, zplus-client and zplus-admin
+make server     # or build one target: server / client / admin
+make clean
 ```
 
-(Rename the server binary `Z+ Server` to `zplus-server` for shell friendliness.)
+Requires GNU make and the .NET 10 SDK. The Linux binaries target **net10.0** (Windows
+builds stay on net8.0); the cross-platform projects multi-target `net8.0;net10.0`.
+Variables can be overridden, e.g. `make RID=linux-arm64` or `make DOTNET=dotnet.exe`
+(the latter lets you run the Makefile from WSL using the Windows .NET SDK).
 
 ## Linux
 

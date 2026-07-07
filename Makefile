@@ -25,12 +25,13 @@ SINGLE_FILE = --self-contained \
               -p:IncludeNativeLibrariesForSelfExtract=true \
               -p:EnableCompressionInSingleFile=true
 
-.PHONY: all server client admin clean
+.PHONY: all server client admin client-gui admin-gui clean
 
-all: server client admin
+all: server client admin client-gui admin-gui
 	@echo ""
 	@echo "Done. Linux binaries ($(TFM), $(RID)):"
-	@ls -l "$(OUT)/server/zplus-server" "$(OUT)/client/zplus-client" "$(OUT)/admin/zplus-admin"
+	@ls -l "$(OUT)/server/zplus-server" "$(OUT)/client/zplus-client" "$(OUT)/admin/zplus-admin" \
+	       "$(OUT)/client-gui/zplus-client-gui" "$(OUT)/admin-gui/zplus-admin-gui"
 
 # The server project already embeds the single-file/self-contained settings;
 # its assembly is named "Z+ Server", so rename the binary for shell friendliness.
@@ -46,6 +47,14 @@ client:
 admin:
 	$(DOTNET) publish src/ZPlus.AdminCli -c $(CONFIG) -f $(TFM) -r $(RID) $(SINGLE_FILE) -o "$(OUT)/admin"
 	chmod +x "$(OUT)/admin/zplus-admin"
+
+client-gui:
+	$(DOTNET) publish src/ZPlus.ClientGui -c $(CONFIG) -f $(TFM) -r $(RID) $(SINGLE_FILE) -o "$(OUT)/client-gui"
+	chmod +x "$(OUT)/client-gui/zplus-client-gui"
+
+admin-gui:
+	$(DOTNET) publish src/ZPlus.AdminGui -c $(CONFIG) -f $(TFM) -r $(RID) $(SINGLE_FILE) -o "$(OUT)/admin-gui"
+	chmod +x "$(OUT)/admin-gui/zplus-admin-gui"
 
 clean:
 	rm -rf "$(OUT)"

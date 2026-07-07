@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ZPlus.ClientGui.Views.MeetingWindow"
+        Title="{Binding Title}" Width="980" Height="680"
+        WindowStartupLocation="CenterScreen" Background="#FF1B1D22">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,10" Spacing="16">
+            <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding MeetingCodeDisplay}" Classes="muted" VerticalAlignment="Center"/>
+            <TextBlock Text="🔒 End-to-end encrypted" Foreground="#FF7BE28B" FontSize="12"
+                       VerticalAlignment="Center" IsVisible="{Binding IsE2eeActive}"/>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#FF2D8CFF" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="320,*" Margin="12,0">
+            <!-- Participants -->
+            <Border Grid.Column="0" Background="#FF24262E" CornerRadius="10" Padding="12" Margin="0,0,8,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="Participants" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding Participants}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FF2C2F38" CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="(host)" Foreground="#FF2D8CFF" IsVisible="{Binding IsHost}"/>
+                                                <TextBlock Text="🔇" Classes="muted" IsVisible="{Binding IsMuted}"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="4"
+                                                        IsVisible="{Binding !IsSelf}">
+                                                <Button Classes="ghost" Content="Unmute?" FontSize="10" Padding="6,2"
+                                                        IsVisible="{Binding $parent[Window].DataContext.IsSelfHost}"
+                                                        Command="{Binding $parent[Window].DataContext.AskToUnmuteCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost" Content="Make host" FontSize="10" Padding="6,2"
+                                                        IsVisible="{Binding $parent[Window].DataContext.IsSelfHost}"
+                                                        Command="{Binding $parent[Window].DataContext.TransferHostCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="danger" Content="Remove" FontSize="10" Padding="6,2"
+                                                        IsVisible="{Binding $parent[Window].DataContext.IsSelfHost}"
+                                                        Command="{Binding $parent[Window].DataContext.RemoveParticipantCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Chat -->
+            <Border Grid.Column="1" Background="#FF24262E" CornerRadius="10" Padding="12">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Row="0" Text="Chat" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="1" Name="ChatScroll">
+                        <ItemsControl ItemsSource="{Binding ChatMessages}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,3">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Text="(private)" Foreground="#FF2D8CFF" FontSize="12"
+                                                       IsVisible="{Binding IsPrivate}"/>
+                                            <TextBlock Text="{Binding Time}" Classes="muted" FontSize="11"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="13"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
+                        <ComboBox ItemsSource="{Binding ChatRecipients}" SelectedItem="{Binding SelectedRecipient}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Label}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Grid ColumnDefinitions="*,6,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding ChatText}" Watermark="Type a message…"
+                                     KeyDown="OnChatKeyDown"/>
+                            <Button Grid.Column="2" Classes="primary" Content="Send" Command="{Binding SendChatCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Control bar -->
+        <Border Grid.Row="2" Background="#FF24262E" CornerRadius="10" Margin="12" Padding="16,10">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Roster and chat only — audio/video is not available in this client yet."
+                               Classes="muted" VerticalAlignment="Center" FontSize="12"/>
+                    <Button Classes="ghost" Content="Mute all" Command="{Binding MuteAllCommand}"
+                            IsVisible="{Binding IsSelfHost}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Classes="danger" Content="End for all" Command="{Binding EndForAllCommand}"
+                            IsVisible="{Binding IsSelfHost}"/>
+                    <Button Classes="ghost" Content="Leave" Command="{Binding LeaveCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

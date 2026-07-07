@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ZPlus.AdminGui.Views.AdminWindow"
+        Title="Z+ Admin" Width="1060" Height="700"
+        WindowStartupLocation="CenterScreen" Background="#FF1B1D22">
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="{Binding HeaderText}" Classes="muted" Margin="4,0,0,10"/>
+
+        <TabControl Grid.Row="1">
+            <!-- ============ USERS ============ -->
+            <TabItem Header="Users">
+                <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+                    <Border Grid.Row="0" Background="#FF2C2F38" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid ColumnDefinitions="2*,8,2*,8,2*,8,*,8,Auto,8,Auto">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Email" Classes="muted" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding NewEmail}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Display name" Classes="muted" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding NewDisplayName}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Password" Classes="muted" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding NewPassword}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Text="Role" Classes="muted" FontSize="11" Margin="0,0,0,3"/>
+                                <ComboBox ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding NewRole}"
+                                          HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            <Button Grid.Column="8" Classes="primary" Content="Add user"
+                                    VerticalAlignment="Bottom" Command="{Binding CreateUserCommand}"/>
+                            <Button Grid.Column="10" Classes="ghost" Content="Refresh"
+                                    VerticalAlignment="Bottom" Command="{Binding RefreshUsersCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding Users}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FF2C2F38" CornerRadius="8" Padding="10" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="2.2*,8,2*,8,150,8,70,*,Auto">
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Email}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding CreatedAtUtc, StringFormat='Created {0:d}'}"
+                                                           Classes="muted" FontSize="11"/>
+                                            </StackPanel>
+                                            <TextBox Grid.Column="2" Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                            <ComboBox Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding $parent[Window].DataContext.AvailableRoles}"
+                                                      SelectedItem="{Binding Role}"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding StatusLabel}" VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"/>
+                                            <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="4">
+                                                <Button Classes="primary" Content="Save" Padding="10,5"
+                                                        Command="{Binding $parent[Window].DataContext.SaveUserCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost" Content="{Binding DisableButtonLabel}" Padding="10,5"
+                                                        Command="{Binding $parent[Window].DataContext.ToggleDisabledCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost" Content="Reset password" Padding="10,5"
+                                                        Command="{Binding $parent[Window].DataContext.ResetPasswordCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ SERVER SETTINGS ============ -->
+            <TabItem Header="Server settings">
+                <ScrollViewer>
+                    <Grid ColumnDefinitions="*,24,*" Margin="0,12,0,0">
+                        <StackPanel Grid.Column="0" Spacing="10">
+                            <TextBlock Text="Policies" FontWeight="SemiBold"/>
+                            <CheckBox IsChecked="{Binding AllowSelfRegistration}"
+                                      Content="Allow users to register their own accounts"/>
+                            <CheckBox IsChecked="{Binding RequireMeetingPasswords}"
+                                      Content="Require a password on every meeting"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Maximum participants per meeting:" VerticalAlignment="Center"/>
+                                <TextBox Text="{Binding MaxParticipants}" Width="80"/>
+                            </StackPanel>
+                            <TextBlock Text="Server listen URL (restart required to apply)" Classes="muted"/>
+                            <TextBox Text="{Binding ListenUrl}"/>
+                            <TextBlock Text="Public URL — the address users and invite links reach" Classes="muted"
+                                       TextWrapping="Wrap"/>
+                            <TextBox Text="{Binding PublicUrl}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                                <Button Classes="primary" Content="Save settings" Command="{Binding SaveSettingsCommand}"/>
+                                <Button Classes="ghost" Content="Reload" Command="{Binding RefreshSettingsCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="10">
+                            <TextBlock Text="Email (meeting invitations)" FontWeight="SemiBold"/>
+                            <TextBlock Text="Leave the SMTP host empty to disable email." Classes="muted"/>
+                            <TextBlock Text="SMTP host" Classes="muted"/>
+                            <TextBox Text="{Binding SmtpHost}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Port:" VerticalAlignment="Center"/>
+                                <TextBox Text="{Binding SmtpPort}" Width="80"/>
+                                <TextBlock Text="(587 uses STARTTLS)" Classes="muted" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="From address" Classes="muted"/>
+                            <TextBox Text="{Binding SmtpFrom}"/>
+                            <TextBlock Text="SMTP user (blank if no authentication)" Classes="muted"/>
+                            <TextBox Text="{Binding SmtpUser}"/>
+                            <TextBlock Text="SMTP password (blank = keep the saved one)" Classes="muted"/>
+                            <TextBox Text="{Binding SmtpPassword}"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============ ACTIVE MEETINGS ============ -->
+            <TabItem Header="Active meetings">
+                <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+                    <Button Grid.Row="0" Classes="ghost" Content="Refresh" HorizontalAlignment="Left"
+                            Margin="0,0,0,10" Command="{Binding RefreshMeetingsCommand}"/>
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding ActiveMeetings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FF2C2F38" CornerRadius="8" Padding="12" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Topic}" FontWeight="SemiBold"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding MeetingCode}" Classes="muted" FontSize="12"/>
+                                                    <TextBlock Text="{Binding HostDisplayName, StringFormat='Host: {0}'}" Classes="muted" FontSize="12"/>
+                                                    <TextBlock Text="{Binding ParticipantCount, StringFormat='{}{0} participant(s)'}" Classes="muted" FontSize="12"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Classes="danger" Content="End meeting"
+                                                    Command="{Binding $parent[Window].DataContext.ForceEndMeetingCommand}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="2" Text="{Binding Status}" Foreground="#FF2D8CFF" Margin="4,8,0,0"/>
+    </Grid>
+</Window>

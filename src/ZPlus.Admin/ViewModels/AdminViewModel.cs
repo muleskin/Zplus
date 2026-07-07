@@ -36,7 +36,7 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         $"Signed in as {api.SignedInUser?.DisplayName} ({api.SignedInUser?.Role}) — {api.ServerUrl}";
 
     /// <summary>Set by the view; asks the operator for a new password when resetting one.</summary>
-    public Func<string, string?>? PromptForPassword { get; set; }
+    public Func<string, Task<string?>>? PromptForPassword { get; set; }
 
     public async Task LoadAsync()
     {
@@ -102,8 +102,8 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     [RelayCommand]
     private async Task ResetPasswordAsync(UserRowViewModel? row)
     {
-        if (row is null) return;
-        var newPassword = PromptForPassword?.Invoke(row.Email);
+        if (row is null || PromptForPassword is null) return;
+        var newPassword = await PromptForPassword(row.Email);
         if (string.IsNullOrEmpty(newPassword)) return;
         await RunAsync(async () =>
         {

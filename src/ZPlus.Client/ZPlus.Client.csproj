@@ -15,6 +15,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AssemblyName>Z+ Client</AssemblyName>
+    <ApplicationIcon>..\..\assets\zplus.ico</ApplicationIcon>
     <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

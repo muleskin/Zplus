@@ -1,0 +1,95 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ZPlus.ClientGui.Views.HomeWindow"
+        Title="Z+ — Home" Width="880" Height="640"
+        WindowStartupLocation="CenterScreen" Background="#FF1B1D22">
+    <Grid Margin="24" RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" Text="{Binding WelcomeText}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,20"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,16,*">
+            <!-- Left: start / join -->
+            <StackPanel Grid.Column="0" Spacing="16">
+                <Border Background="#FF24262E" CornerRadius="10" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Start" FontSize="16" FontWeight="SemiBold"/>
+                        <Button Classes="primary" Content="Start an instant meeting"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding StartInstantMeetingCommand}"/>
+                        <TextBlock Text="Audio/video isn't available in this client yet — meetings are roster + chat."
+                                   Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#FF24262E" CornerRadius="10" Padding="20">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Join" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock Text="Meeting ID" Classes="muted"/>
+                        <TextBox Text="{Binding JoinCode}"/>
+                        <TextBlock Text="Password (if required)" Classes="muted"/>
+                        <TextBox Text="{Binding JoinPassword}"/>
+                        <Button Classes="primary" Content="Join meeting" Margin="0,6,0,0"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding JoinMeetingCommand}"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Info}" Foreground="#FF7BE28B" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Right: schedule + list -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="#FF24262E" CornerRadius="10" Padding="20">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Schedule a meeting" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock Text="Topic" Classes="muted"/>
+                        <TextBox Text="{Binding ScheduleTopic}"/>
+                        <Grid ColumnDefinitions="*,8,90,8,90">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Date" Classes="muted"/>
+                                <CalendarDatePicker SelectedDate="{Binding ScheduleDate}" HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="Time" Classes="muted"/>
+                                <TextBox Text="{Binding ScheduleTime}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Spacing="4">
+                                <TextBlock Text="Minutes" Classes="muted"/>
+                                <TextBox Text="{Binding ScheduleDuration}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Password (optional)" Classes="muted"/>
+                        <TextBox Text="{Binding SchedulePassword}"/>
+                        <TextBlock Text="Invite by email (comma-separated, optional)" Classes="muted"/>
+                        <TextBox Text="{Binding ScheduleInvites}"/>
+                        <Button Classes="primary" Content="Schedule" Margin="0,6,0,0"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding ScheduleMeetingCommand}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="1" Background="#FF24262E" CornerRadius="10" Padding="20" Margin="0,16,0,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="Your meetings" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <ScrollViewer Grid.Row="1">
+                            <ItemsControl ItemsSource="{Binding MyMeetings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FF2C2F38" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Topic}" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding MeetingCode}" Classes="muted" FontSize="12"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Classes="primary" Content="Start" Padding="12,5"
+                                                        Command="{Binding $parent[Window].DataContext.StartFromListCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

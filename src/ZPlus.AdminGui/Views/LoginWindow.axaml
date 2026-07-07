@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ZPlus.AdminGui.Views.LoginWindow"
+        Title="Z+ Admin — Sign in" Width="420" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterScreen" Background="#FF1B1D22">
+    <StackPanel Margin="36,28">
+        <TextBlock Text="Z+ Admin" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
+                   Foreground="#FF2D8CFF"/>
+        <TextBlock Text="Server administration console" HorizontalAlignment="Center"
+                   Classes="muted" Margin="0,4,0,24"/>
+
+        <TextBlock Text="Server" Classes="muted" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding ServerUrl}"/>
+
+        <TextBlock Text="Admin email" Classes="muted" Margin="0,12,0,4"/>
+        <TextBox Text="{Binding Email}"/>
+
+        <TextBlock Text="Password" Classes="muted" Margin="0,12,0,4"/>
+        <TextBox Text="{Binding Password}" PasswordChar="●"/>
+
+        <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap" Margin="0,12,0,0"/>
+
+        <Button Classes="primary" Margin="0,16,0,0" Content="Sign in" IsDefault="True"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Command="{Binding SignInCommand}"/>
+    </StackPanel>
+</Window>

@@ -15,8 +15,10 @@ and host controls.
 | `src/ZPlus.Server` | ASP.NET Core Web API (JWT auth, meetings, admin) + SignalR `MeetingHub` (roster, chat, WebRTC signaling relay, host controls) + EF Core/SQLite persistence |
 | `src/ZPlus.Client` | WPF (.NET 10) MVVM client with SIPSorcery WebRTC mesh media engine |
 | `src/ZPlus.Admin` | WPF admin console: user management, roles/rights, server settings, active-meeting control |
-| `src/ZPlus.ClientCli` | Cross-platform console meeting client (`zplus-client`): join, roster, chat — used on Linux |
-| `src/ZPlus.AdminCli` | Cross-platform console admin tool (`zplus-admin`): users, settings, meetings — scriptable |
+| `src/ZPlus.ClientGui` | Cross-platform Avalonia meeting client (`zplus-client-gui`) — the Linux GUI: meetings, roster, E2EE chat |
+| `src/ZPlus.AdminGui` | Cross-platform Avalonia admin console (`zplus-admin-gui`) — the Linux GUI, same features as the WPF admin |
+| `src/ZPlus.ClientCli` | Console meeting client (`zplus-client`): join, roster, chat — for terminals and scripting |
+| `src/ZPlus.AdminCli` | Console admin tool (`zplus-admin`): users, settings, meetings — scriptable |
 
 ## Building single-file executables
 
@@ -48,23 +50,26 @@ Variables can be overridden, e.g. `make RID=linux-arm64` or `make DOTNET=dotnet.
 
 ## Linux
 
-`publish/linux/` contains three self-contained x64 binaries — no .NET install required
+`publish/linux/` contains five self-contained x64 binaries — no .NET install required
 (`chmod +x` them after copying):
 
 - **`zplus-server`** — the full Z+ server, identical feature set to Windows. Creates
   `zplus.db` and `zplus.key` next to itself, binds `0.0.0.0:5199`. All environment
   overrides (`ZPLUS_DB`, `ZPLUS_KEY`, `ZPLUS_ADMIN_EMAIL`, `ZPLUS_ADMIN_PASSWORD`) work
   the same. Windows and Linux clients connect to it interchangeably.
-- **`zplus-admin`** — scriptable admin CLI covering everything the Windows admin GUI does:
-  `users list|create|update|reset-password`, `settings get|set`, `meetings list|end`.
-  Run `zplus-admin help` for usage; credentials via flags, env vars, or prompts.
-- **`zplus-client`** — console meeting client: sign in (or `--register`), start/join
-  meetings, live roster (`/who`), public chat, private chat (`/msg`), host actions
-  (`/end`). **No audio/video** — the media capture stack (Windows Media Foundation) is
-  Windows-only; Linux users participate via roster + chat. Full A/V on Linux would come
-  with a cross-platform UI (e.g. Avalonia + FFmpeg media endpoints).
+- **`zplus-client-gui`** — the Linux **desktop meeting client** (Avalonia, same dark Z+
+  look as Windows): sign in/register, start/join/schedule meetings with email invitations,
+  live roster with host controls, end-to-end encrypted public/private chat.
+  **No audio/video yet** — the media capture stack (Windows Media Foundation) is
+  Windows-only; Linux participants join with roster + chat.
+- **`zplus-admin-gui`** — the Linux **desktop admin console** (Avalonia), same features
+  as the Windows admin app: users/roles, all server settings including SMTP, active
+  meetings with force-end.
+- **`zplus-client`** / **`zplus-admin`** — the console equivalents, for terminals, SSH
+  sessions and scripting (`zplus-admin help` for usage).
 
-Both console tools also run on Windows if you prefer a terminal or need scripting.
+The GUI apps share their view-models with the Windows WPF apps and also run on Windows;
+the console tools run anywhere.
 
 ## Running it
 

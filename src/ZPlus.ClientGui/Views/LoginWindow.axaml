@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ZPlus.ClientGui.Views.LoginWindow"
+        Title="Z+ — Sign in" Width="420" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterScreen" Background="#FF1B1D22">
+    <StackPanel Margin="36,28">
+        <TextBlock Text="Z+" FontSize="34" FontWeight="Bold" HorizontalAlignment="Center"
+                   Foreground="#FF2D8CFF"/>
+        <TextBlock Text="Video meetings — cross-platform client" HorizontalAlignment="Center"
+                   Classes="muted" Margin="0,4,0,24"/>
+
+        <TextBlock Text="Server" Classes="muted" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding ServerUrl}"/>
+
+        <TextBlock Text="Email" Classes="muted" Margin="0,12,0,4"/>
+        <TextBox Text="{Binding Email}"/>
+
+        <StackPanel IsVisible="{Binding IsRegisterMode}">
+            <TextBlock Text="Display name" Classes="muted" Margin="0,12,0,4"/>
+            <TextBox Text="{Binding DisplayName}"/>
+        </StackPanel>
+
+        <TextBlock Text="Password" Classes="muted" Margin="0,12,0,4"/>
+        <TextBox Text="{Binding Password}" PasswordChar="●"/>
+
+        <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap" Margin="0,12,0,0"/>
+
+        <Button Classes="primary" Margin="0,16,0,0" Content="{Binding SubmitLabel}" IsDefault="True"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Command="{Binding SubmitCommand}"/>
+        <Button Classes="ghost" Margin="0,10,0,0" Content="{Binding ToggleLabel}"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Command="{Binding ToggleModeCommand}"/>
+    </StackPanel>
+</Window>

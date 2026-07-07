@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>zplus-client-gui</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DebugType>embedded</DebugType>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- AVLN3001: windows with constructor parameters are created in code, not by the runtime loader. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZPlus.Shared\ZPlus.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.*" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.*" />
+  </ItemGroup>
+
+  <!-- Shared with the WPF client: services and pre-meeting view-models are UI-framework-free. -->
+  <ItemGroup>
+    <Compile Include="..\ZPlus.Client\Services\AppSession.cs" Link="Services\AppSession.cs" />
+    <Compile Include="..\ZPlus.Client\Services\ApiClient.cs" Link="Services\ApiClient.cs" />
+    <Compile Include="..\ZPlus.Client\Services\MeetingHubClient.cs" Link="Services\MeetingHubClient.cs" />
+    <Compile Include="..\ZPlus.Client\ViewModels\LoginViewModel.cs" Link="ViewModels\LoginViewModel.cs" />
+    <Compile Include="..\ZPlus.Client\ViewModels\HomeViewModel.cs" Link="ViewModels\HomeViewModel.cs" />
+  </ItemGroup>
+
+</Project>

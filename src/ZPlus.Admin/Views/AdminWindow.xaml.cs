@@ -13,7 +13,7 @@ public partial class AdminWindow : Window
         InitializeComponent();
         _viewModel = new AdminViewModel(api)
         {
-            PromptForPassword = email => InputDialog.Show(this, $"New password for {email}:"),
+            PromptForPassword = email => Task.FromResult(InputDialog.Show(this, $"New password for {email}:")),
         };
         DataContext = _viewModel;
         Loaded += async (_, _) => await _viewModel.LoadAsync();

@@ -1,0 +1,29 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ZPlus.ClientGui.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme/>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#FF2D8CFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,7"/>
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#FFE02F44"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,7"/>
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="#FF2C2F38"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,7"/>
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="#FF9AA0AA"/>
+        </Style>
+    </Application.Styles>
+</Application>

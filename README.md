@@ -43,8 +43,10 @@ make clean
 
 Requires GNU make and the .NET 10 SDK. The Linux binaries target **net10.0** (Windows
 builds stay on net8.0); the cross-platform projects multi-target `net8.0;net10.0`.
-Variables can be overridden, e.g. `make RID=linux-arm64` or `make DOTNET=dotnet.exe`
-(the latter lets you run the Makefile from WSL using the Windows .NET SDK).
+The RuntimeIdentifier is **auto-detected from the build machine** (`x86_64` → linux-x64,
+`aarch64` → linux-arm64, `armv7l/armv6l` → linux-arm, with `linux-musl-*` on Alpine).
+Cross-build by overriding it, e.g. `make RID=linux-arm64`; `make DOTNET=dotnet.exe`
+runs the Makefile from WSL using the Windows .NET SDK.
 
 ## Linux
 

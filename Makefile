@@ -15,10 +15,35 @@
 # (see README, "Building single-file executables").
 
 CONFIG ?= Release
-RID    ?= linux-x64
 TFM    ?= net10.0
 OUT    ?= publish/linux
 DOTNET ?= dotnet
+
+# ---- RuntimeIdentifier auto-detection ---------------------------------------
+# The RID is derived from the build machine: x86_64 -> linux-x64,
+# aarch64 -> linux-arm64, armv7l/armv6l (armhf) -> linux-arm, with a
+# linux-musl-* variant on musl-based systems (e.g. Alpine).
+# Cross-build by passing it explicitly:  make RID=linux-arm64
+ifeq ($(origin RID), undefined)
+  UNAME_M := $(shell uname -m)
+  ifeq ($(UNAME_M),x86_64)
+    RID_ARCH := x64
+  else ifeq ($(UNAME_M),amd64)
+    RID_ARCH := x64
+  else ifeq ($(UNAME_M),aarch64)
+    RID_ARCH := arm64
+  else ifeq ($(UNAME_M),arm64)
+    RID_ARCH := arm64
+  else ifeq ($(UNAME_M),armv7l)
+    RID_ARCH := arm
+  else ifeq ($(UNAME_M),armv6l)
+    RID_ARCH := arm
+  else
+    $(error Cannot map architecture '$(UNAME_M)' to a .NET RID - pass RID=<linux-rid> explicitly)
+  endif
+  RID_LIBC := $(shell ldd --version 2>&1 | grep -qi musl && echo musl-)
+  RID := linux-$(RID_LIBC)$(RID_ARCH)
+endif
 
 SINGLE_FILE = --self-contained \
               -p:PublishSingleFile=true \

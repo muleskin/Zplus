@@ -36,10 +36,18 @@ Copy `Z+ Server.exe`, `Z+ Client.exe`, and `Z+ Admin.exe` wherever you need them
 **Linux** (net10.0, into `publish/linux`) — use the `Makefile` at the repository root:
 
 ```
-make            # builds zplus-server, zplus-client and zplus-admin
-make server     # or build one target: server / client / admin
+scripts/install-dotnet.sh   # one-time: install the .NET 10 SDK + native libraries
+make                        # builds zplus-server, zplus-client and zplus-admin
+make server                 # or build one target: server / client / admin
 make clean
 ```
+
+`scripts/install-dotnet.sh` sets up a Linux machine for Z+: it installs the .NET 10 SDK
+(needed to build) plus the native libraries the self-contained binaries rely on at runtime
+(ICU, OpenSSL, and X11/fontconfig for the GUI apps). It detects the distro (Debian/Ubuntu,
+Fedora/RHEL, openSUSE, Arch, Alpine) and falls back to Microsoft's `dotnet-install.sh` on
+others. To only prepare a machine to **run** the published binaries (no SDK), use
+`scripts/install-dotnet.sh --deps-only`.
 
 Requires GNU make and the .NET 10 SDK. The Linux binaries target **net10.0** (Windows
 builds stay on net8.0); the cross-platform projects multi-target `net8.0;net10.0`.

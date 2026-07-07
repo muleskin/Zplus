@@ -7,6 +7,7 @@
 #
 # Requirements: GNU make + .NET 10 SDK on the build machine (Linux or Windows).
 # Run from the repository root:
+#   make deps       # install the .NET 10 SDK + native libraries (first-time Linux setup)
 #   make            # build all three
 #   make server     # just the server
 #   make clean      # remove publish/linux and intermediate outputs
@@ -50,12 +51,16 @@ SINGLE_FILE = --self-contained \
               -p:IncludeNativeLibrariesForSelfExtract=true \
               -p:EnableCompressionInSingleFile=true
 
-.PHONY: all server client admin clean
+.PHONY: all deps server client admin clean
 
 all: server client admin
 	@echo ""
 	@echo "Done. Linux binaries ($(TFM), $(RID)):"
 	@ls -l "$(OUT)/server/zplus-server" "$(OUT)/client/zplus-client" "$(OUT)/admin/zplus-admin"
+
+# First-time Linux setup: .NET 10 SDK + native runtime libraries.
+deps:
+	bash scripts/install-dotnet.sh
 
 # The server project already embeds the single-file/self-contained settings;
 # its assembly is named "Z+ Server", so rename the binary for shell friendliness.

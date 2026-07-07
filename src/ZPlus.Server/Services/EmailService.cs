@@ -50,6 +50,46 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
             body.AppendLine("To join: open Z+ and enter the meeting ID above.");
         }
 
+        var smtpPassword = await settings.GetSmtpPasswordAsync();
+        var error = await SendAsync(config, smtpPassword, from, email,
+            $"Z+ meeting invitation: {meeting.Topic}", body.ToString());
+        if (error is not null)
+            logger.LogWarning("Invite to {Email} for {Code} failed: {Error}", email, meeting.MeetingCode, error);
+        return error;
+    }
+
+    /// <summary>
+    /// Sends a test email using the supplied settings (which may be unsaved form values).
+    /// A blank password in the settings resolves to the stored one. Returns null on
+    /// success, or the SMTP error so the admin can diagnose configuration problems.
+    /// </summary>
+    public async Task<string?> SendTestAsync(ServerSettingsDto config, string recipient)
+    {
+        if (string.IsNullOrWhiteSpace(config.SmtpHost))
+            return "Enter an SMTP host first.";
+        if (string.IsNullOrWhiteSpace(recipient) || !recipient.Contains('@'))
+            return "Enter a valid test recipient email address.";
+
+        // Blank password means "use the one already stored on the server".
+        string password = string.IsNullOrEmpty(config.SmtpPassword)
+            ? await settings.GetSmtpPasswordAsync()
+            : config.SmtpPassword;
+
+        var from = string.IsNullOrWhiteSpace(config.SmtpFrom) ? $"zplus@{config.SmtpHost}" : config.SmtpFrom;
+        var body =
+            "This is a test message from your Z+ server confirming that email delivery is working.\r\n\r\n" +
+            "If you received this, meeting invitations will be delivered with these settings.";
+
+        var error = await SendAsync(config, password, from, recipient.Trim(), "Z+ email test", body);
+        if (error is not null)
+            logger.LogWarning("Test email to {To} failed: {Error}", recipient, error);
+        return error;
+    }
+
+    /// <summary>Core SMTP send shared by invites and tests. Returns null on success, else the error.</summary>
+    private static async Task<string?> SendAsync(
+        ServerSettingsDto config, string password, string from, string to, string subject, string body)
+    {
         try
         {
             using var smtp = new SmtpClient(config.SmtpHost, config.SmtpPort)
@@ -59,22 +99,20 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
                 EnableSsl = config.SmtpPort == 587,
                 DeliveryMethod = SmtpDeliveryMethod.Network,
             };
-            var smtpPassword = await settings.GetSmtpPasswordAsync();
             if (!string.IsNullOrEmpty(config.SmtpUser))
-                smtp.Credentials = new NetworkCredential(config.SmtpUser, smtpPassword);
+                smtp.Credentials = new NetworkCredential(config.SmtpUser, password);
 
-            using var message = new MailMessage(from, email)
-            {
-                Subject = $"Z+ meeting invitation: {meeting.Topic}",
-                Body = body.ToString(),
-            };
+            using var message = new MailMessage(from, to) { Subject = subject, Body = body };
             await smtp.SendMailAsync(message);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Invite to {Email} for {Code} failed: {Error}", email, meeting.MeetingCode, ex.Message);
-            return ex.Message;
+            // The useful detail for connection failures (refused/timeout/DNS) is in the
+            // inner exception; append it so the admin can actually diagnose the problem.
+            return ex.InnerException is { Message: var inner } && inner != ex.Message
+                ? $"{ex.Message} ({inner})"
+                : ex.Message;
         }
     }
 }

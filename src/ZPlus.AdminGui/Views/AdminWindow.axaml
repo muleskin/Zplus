@@ -113,6 +113,12 @@
                             <TextBox Text="{Binding SmtpUser}"/>
                             <TextBlock Text="SMTP password (blank = keep the saved one)" Classes="muted"/>
                             <TextBox Text="{Binding SmtpPassword}"/>
+                            <TextBlock Text="Send a test email to" Classes="muted"/>
+                            <Grid ColumnDefinitions="*,6,Auto">
+                                <TextBox Grid.Column="0" Text="{Binding TestRecipient}"/>
+                                <Button Grid.Column="2" Classes="ghost" Content="Send test" Command="{Binding TestEmailCommand}"/>
+                            </Grid>
+                            <TextBlock Text="Uses the settings shown here — no need to save first." Classes="muted" FontSize="11"/>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

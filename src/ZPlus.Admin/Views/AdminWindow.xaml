@@ -161,6 +161,19 @@
                             <TextBox Text="{Binding SmtpUser, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
                             <TextBlock Text="SMTP password (blank = keep the saved one)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
                             <TextBox Text="{Binding SmtpPassword, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Text="Send a test email to" Foreground="{StaticResource MutedFg}" Margin="0,14,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding TestRecipient, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Send test"
+                                        Margin="6,0,0,0" Command="{Binding TestEmailCommand}"/>
+                            </Grid>
+                            <TextBlock Text="Uses the settings shown here — no need to save first."
+                                       Foreground="{StaticResource MutedFg}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

@@ -19,6 +19,7 @@ public class AdminController(
     SettingsService settings,
     MeetingStateStore state,
     PasswordService passwords,
+    EmailService email,
     IHubContext<MeetingHub> hub) : ControllerBase
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -131,6 +132,16 @@ public class AdminController(
             return BadRequest("Public URL must be empty or an absolute http:// or https:// address.");
         await settings.SaveAsync(request);
         return Ok(await settings.GetAsync());
+    }
+
+    /// <summary>Sends a test email with the supplied (possibly unsaved) settings so the admin can verify SMTP.</summary>
+    [HttpPost("settings/test-email")]
+    public async Task<IActionResult> TestEmail(SmtpTestRequest request)
+    {
+        if (request.Settings.SmtpPort is < 1 or > 65535)
+            return BadRequest("SMTP port must be between 1 and 65535.");
+        var error = await email.SendTestAsync(request.Settings, request.Recipient);
+        return error is null ? Ok() : BadRequest(error);
     }
 
     // ---- Meetings ----------------------------------------------------------------

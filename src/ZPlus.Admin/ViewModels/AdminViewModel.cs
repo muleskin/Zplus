@@ -27,6 +27,7 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     [ObservableProperty] private string _smtpFrom = "";
     [ObservableProperty] private string _smtpUser = "";
     [ObservableProperty] private string _smtpPassword = "";
+    [ObservableProperty] private string _testRecipient = "";
 
     public ObservableCollection<UserRowViewModel> Users { get; } = [];
     public ObservableCollection<ActiveMeetingDto> ActiveMeetings { get; } = [];
@@ -128,6 +129,8 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         SmtpFrom = settings.SmtpFrom;
         SmtpUser = settings.SmtpUser;
         SmtpPassword = "";
+        if (string.IsNullOrEmpty(TestRecipient))
+            TestRecipient = api.SignedInUser?.Email ?? "";
     }
 
     [RelayCommand]
@@ -160,6 +163,33 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
             SmtpUser = saved.SmtpUser;
             SmtpPassword = "";
             Status = "Settings saved. Listen URL changes take effect after a server restart.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task TestEmailAsync()
+    {
+        if (!int.TryParse(SmtpPort, out var smtpPort))
+        {
+            Status = "SMTP port must be a number.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(TestRecipient))
+        {
+            Status = "Enter a test recipient email address.";
+            return;
+        }
+        Status = $"Sending test email to {TestRecipient.Trim()}…";
+        await RunAsync(async () =>
+        {
+            // Test the settings currently shown in the form (unsaved is fine); a blank
+            // password reuses the one already stored on the server.
+            var settings = new ServerSettingsDto(
+                AllowSelfRegistration, RequireMeetingPasswords,
+                int.TryParse(MaxParticipants, out var max) ? max : 25, ListenUrl.Trim(),
+                PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(), SmtpPassword);
+            await api.SendTestEmailAsync(settings, TestRecipient.Trim());
+            Status = $"Test email sent to {TestRecipient.Trim()}. Check that inbox.";
         });
     }
 

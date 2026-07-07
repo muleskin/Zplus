@@ -44,6 +44,10 @@ public class AdminApiClient
     public Task<ServerSettingsDto> SaveSettingsAsync(ServerSettingsDto settings) =>
         SendAsync<ServerSettingsDto, ServerSettingsDto>(HttpMethod.Put, "api/admin/settings", settings);
 
+    public Task SendTestEmailAsync(ServerSettingsDto settings, string recipient) =>
+        SendAsync<SmtpTestRequest, object?>(HttpMethod.Post, "api/admin/settings/test-email",
+            new SmtpTestRequest(settings, recipient), expectBody: false);
+
     public Task<List<ActiveMeetingDto>> GetActiveMeetingsAsync() =>
         GetAsync<List<ActiveMeetingDto>>("api/admin/meetings/active");
 

@@ -42,6 +42,9 @@ public record ServerSettingsDto(
     string SmtpUser = "",
     string SmtpPassword = "");
 
+/// <summary>Sends a test email using the given settings (blank password uses the stored one).</summary>
+public record SmtpTestRequest(ServerSettingsDto Settings, string Recipient);
+
 public record ActiveMeetingDto(
     Guid Id,
     string MeetingCode,

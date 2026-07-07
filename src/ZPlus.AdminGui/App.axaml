@@ -33,5 +33,23 @@
         <Style Selector="TextBlock.muted">
             <Setter Property="Foreground" Value="#FF9AA0AA"/>
         </Style>
+
+        <!-- Readable tab headers: FluentTheme's default dark-on-dark is nearly invisible. -->
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="#FF9AA0AA"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="MinHeight" Value="40"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Foreground" Value="#FFF2F2F2"/>
+        </Style>
+        <Style Selector="TabItem:selected:pointerover">
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        </Style>
     </Application.Styles>
 </Application>

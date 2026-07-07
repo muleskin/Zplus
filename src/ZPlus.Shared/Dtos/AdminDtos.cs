@@ -27,8 +27,10 @@ public record AdminResetPasswordRequest(string NewPassword);
 
 /// <summary>
 /// Server-wide configuration, stored in the database and editable from the admin app.
-/// SmtpPassword is write-only: reads always return "" and saving an empty value keeps
-/// the stored password; PublicUrl is the externally reachable address used in invite links.
+/// Email can be sent via SMTP or the Mailgun HTTP API (EmailProvider = "SMTP" | "Mailgun").
+/// SmtpPassword and MailgunApiKey are write-only: reads always return "" and saving an
+/// empty value keeps the stored secret. PublicUrl is the externally reachable address used
+/// in invite links; SmtpFrom is the shared From address for whichever provider is active.
 /// </summary>
 public record ServerSettingsDto(
     bool AllowSelfRegistration,
@@ -40,7 +42,11 @@ public record ServerSettingsDto(
     int SmtpPort = 587,
     string SmtpFrom = "",
     string SmtpUser = "",
-    string SmtpPassword = "");
+    string SmtpPassword = "",
+    string EmailProvider = "SMTP",
+    string MailgunDomain = "",
+    string MailgunRegion = "us",
+    string MailgunApiKey = "");
 
 /// <summary>Sends a test email using the given settings (blank password uses the stored one).</summary>
 public record SmtpTestRequest(ServerSettingsDto Settings, string Recipient);

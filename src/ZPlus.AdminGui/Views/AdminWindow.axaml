@@ -99,20 +99,40 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="10">
                             <TextBlock Text="Email (meeting invitations)" FontWeight="SemiBold"/>
-                            <TextBlock Text="Leave the SMTP host empty to disable email." Classes="muted"/>
-                            <TextBlock Text="SMTP host" Classes="muted"/>
-                            <TextBox Text="{Binding SmtpHost}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Port:" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SmtpPort}" Width="80"/>
-                                <TextBlock Text="(587 uses STARTTLS)" Classes="muted" VerticalAlignment="Center"/>
+                            <TextBlock Text="Provider" Classes="muted"/>
+                            <ComboBox ItemsSource="{Binding EmailProviders}" SelectedItem="{Binding EmailProvider}"
+                                      HorizontalAlignment="Stretch"/>
+
+                            <!-- Mailgun API (domain sending key) -->
+                            <StackPanel Spacing="10" IsVisible="{Binding IsMailgunProvider}">
+                                <TextBlock Text="Mailgun sending domain (e.g. mg.yourdomain.com)" Classes="muted"/>
+                                <TextBox Text="{Binding MailgunDomain}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Region:" VerticalAlignment="Center"/>
+                                    <ComboBox ItemsSource="{Binding MailgunRegions}" SelectedItem="{Binding MailgunRegion}" Width="90"/>
+                                    <TextBlock Text="(us or eu)" Classes="muted" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Sending key (blank = keep the saved one)" Classes="muted"/>
+                                <TextBox Text="{Binding MailgunApiKey}"/>
                             </StackPanel>
+
+                            <!-- SMTP -->
+                            <StackPanel Spacing="10" IsVisible="{Binding IsSmtpProvider}">
+                                <TextBlock Text="SMTP host (blank disables email)" Classes="muted"/>
+                                <TextBox Text="{Binding SmtpHost}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Port:" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding SmtpPort}" Width="80"/>
+                                    <TextBlock Text="(587 uses STARTTLS)" Classes="muted" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="SMTP user (blank if no authentication)" Classes="muted"/>
+                                <TextBox Text="{Binding SmtpUser}"/>
+                                <TextBlock Text="SMTP password (blank = keep the saved one)" Classes="muted"/>
+                                <TextBox Text="{Binding SmtpPassword}"/>
+                            </StackPanel>
+
                             <TextBlock Text="From address" Classes="muted"/>
                             <TextBox Text="{Binding SmtpFrom}"/>
-                            <TextBlock Text="SMTP user (blank if no authentication)" Classes="muted"/>
-                            <TextBox Text="{Binding SmtpUser}"/>
-                            <TextBlock Text="SMTP password (blank = keep the saved one)" Classes="muted"/>
-                            <TextBox Text="{Binding SmtpPassword}"/>
                             <TextBlock Text="Send a test email to" Classes="muted"/>
                             <Grid ColumnDefinitions="*,6,Auto">
                                 <TextBox Grid.Column="0" Text="{Binding TestRecipient}"/>

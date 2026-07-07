@@ -9,6 +9,7 @@ namespace ZPlus.Server.Services;
 public class SettingsService(AppDbContext db, SecretProtector protector)
 {
     private const string SmtpPasswordKey = "SmtpPassword";
+    private const string MailgunApiKeyKey = "MailgunApiKey";
 
     public static readonly ServerSettingsDto Defaults = new(
         AllowSelfRegistration: true,
@@ -30,13 +31,22 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
             GetInt(stored, nameof(ServerSettingsDto.SmtpPort), Defaults.SmtpPort),
             stored.GetValueOrDefault(nameof(ServerSettingsDto.SmtpFrom), ""),
             stored.GetValueOrDefault(nameof(ServerSettingsDto.SmtpUser), ""),
-            SmtpPassword: "");
+            SmtpPassword: "",
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.EmailProvider), "SMTP"),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.MailgunDomain), ""),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.MailgunRegion), "us"),
+            MailgunApiKey: "");
     }
 
     /// <summary>Decrypts the stored SMTP password for the mailer. Never exposed via the API.</summary>
-    public async Task<string> GetSmtpPasswordAsync()
+    public Task<string> GetSmtpPasswordAsync() => GetSecretAsync(SmtpPasswordKey);
+
+    /// <summary>Decrypts the stored Mailgun sending key for the mailer. Never exposed via the API.</summary>
+    public Task<string> GetMailgunApiKeyAsync() => GetSecretAsync(MailgunApiKeyKey);
+
+    private async Task<string> GetSecretAsync(string key)
     {
-        var row = await db.ServerSettings.AsNoTracking().SingleOrDefaultAsync(s => s.Key == SmtpPasswordKey);
+        var row = await db.ServerSettings.AsNoTracking().SingleOrDefaultAsync(s => s.Key == key);
         return row is null ? "" : protector.Unprotect(row.Value) ?? "";
     }
 
@@ -51,9 +61,16 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
         await Upsert(nameof(ServerSettingsDto.SmtpPort), settings.SmtpPort.ToString());
         await Upsert(nameof(ServerSettingsDto.SmtpFrom), settings.SmtpFrom.Trim());
         await Upsert(nameof(ServerSettingsDto.SmtpUser), settings.SmtpUser.Trim());
-        // Write-only: an empty password means "keep the current one".
+        await Upsert(nameof(ServerSettingsDto.EmailProvider),
+            settings.EmailProvider.Equals("Mailgun", StringComparison.OrdinalIgnoreCase) ? "Mailgun" : "SMTP");
+        await Upsert(nameof(ServerSettingsDto.MailgunDomain), settings.MailgunDomain.Trim());
+        await Upsert(nameof(ServerSettingsDto.MailgunRegion),
+            settings.MailgunRegion.Equals("eu", StringComparison.OrdinalIgnoreCase) ? "eu" : "us");
+        // Write-only secrets: an empty value means "keep the current one".
         if (!string.IsNullOrEmpty(settings.SmtpPassword))
             await Upsert(SmtpPasswordKey, protector.Protect(settings.SmtpPassword));
+        if (!string.IsNullOrEmpty(settings.MailgunApiKey))
+            await Upsert(MailgunApiKeyKey, protector.Protect(settings.MailgunApiKey));
         await db.SaveChangesAsync();
     }
 

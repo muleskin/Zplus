@@ -144,23 +144,41 @@
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Email (meeting invitations)" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBlock Text="Leave the SMTP host empty to disable email."
-                                       Foreground="{StaticResource MutedFg}" Margin="0,0,0,10"/>
-                            <TextBlock Text="SMTP host" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="Port:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Text="{Binding SmtpPort, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
-                                <TextBlock Text="(587 uses STARTTLS)" Foreground="{StaticResource MutedFg}"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBlock Text="Email (meeting invitations)" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <TextBlock Text="Provider" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <ComboBox ItemsSource="{Binding EmailProviders}" SelectedItem="{Binding EmailProvider}" Margin="0,0,0,10"/>
+
+                            <!-- Mailgun API (domain sending key) -->
+                            <StackPanel Visibility="{Binding IsMailgunProvider, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Mailgun sending domain (e.g. mg.yourdomain.com)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding MailgunDomain, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="Region:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox ItemsSource="{Binding MailgunRegions}" SelectedItem="{Binding MailgunRegion}" Width="90"/>
+                                    <TextBlock Text="(us or eu)" Foreground="{StaticResource MutedFg}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="Sending key (blank = keep the saved one)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding MailgunApiKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
                             </StackPanel>
+
+                            <!-- SMTP -->
+                            <StackPanel Visibility="{Binding IsSmtpProvider, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="SMTP host (blank disables email)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="Port:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox Text="{Binding SmtpPort, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+                                    <TextBlock Text="(587 uses STARTTLS)" Foreground="{StaticResource MutedFg}"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="SMTP user (blank if no authentication)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding SmtpUser, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                                <TextBlock Text="SMTP password (blank = keep the saved one)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding SmtpPassword, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                            </StackPanel>
+
                             <TextBlock Text="From address" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding SmtpFrom, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
-                            <TextBlock Text="SMTP user (blank if no authentication)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding SmtpUser, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
-                            <TextBlock Text="SMTP password (blank = keep the saved one)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding SmtpPassword, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Text="{Binding SmtpFrom, UpdateSourceTrigger=PropertyChanged}"/>
 
                             <TextBlock Text="Send a test email to" Foreground="{StaticResource MutedFg}" Margin="0,14,0,4"/>
                             <Grid>

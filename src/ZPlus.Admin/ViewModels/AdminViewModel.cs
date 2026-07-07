@@ -27,7 +27,24 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     [ObservableProperty] private string _smtpFrom = "";
     [ObservableProperty] private string _smtpUser = "";
     [ObservableProperty] private string _smtpPassword = "";
+    [ObservableProperty] private string _emailProvider = "SMTP";
+    [ObservableProperty] private string _mailgunDomain = "";
+    [ObservableProperty] private string _mailgunRegion = "us";
+    [ObservableProperty] private string _mailgunApiKey = "";
     [ObservableProperty] private string _testRecipient = "";
+
+    public string[] EmailProviders => ["SMTP", "Mailgun"];
+    public string[] MailgunRegions => ["us", "eu"];
+
+    public bool IsMailgunProvider =>
+        string.Equals(EmailProvider, "Mailgun", StringComparison.OrdinalIgnoreCase);
+    public bool IsSmtpProvider => !IsMailgunProvider;
+
+    partial void OnEmailProviderChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsMailgunProvider));
+        OnPropertyChanged(nameof(IsSmtpProvider));
+    }
 
     public ObservableCollection<UserRowViewModel> Users { get; } = [];
     public ObservableCollection<ActiveMeetingDto> ActiveMeetings { get; } = [];
@@ -129,9 +146,19 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         SmtpFrom = settings.SmtpFrom;
         SmtpUser = settings.SmtpUser;
         SmtpPassword = "";
+        EmailProvider = settings.EmailProvider;
+        MailgunDomain = settings.MailgunDomain;
+        MailgunRegion = settings.MailgunRegion;
+        MailgunApiKey = "";
         if (string.IsNullOrEmpty(TestRecipient))
             TestRecipient = api.SignedInUser?.Email ?? "";
     }
+
+    /// <summary>Builds a settings DTO from the current form values.</summary>
+    private ServerSettingsDto CurrentSettings(int max, int smtpPort) => new(
+        AllowSelfRegistration, RequireMeetingPasswords, max, ListenUrl.Trim(),
+        PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(), SmtpPassword,
+        EmailProvider, MailgunDomain.Trim(), MailgunRegion, MailgunApiKey);
 
     [RelayCommand]
     private async Task SaveSettingsAsync()
@@ -148,10 +175,7 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         }
         await RunAsync(async () =>
         {
-            var saved = await api.SaveSettingsAsync(new ServerSettingsDto(
-                AllowSelfRegistration, RequireMeetingPasswords, max, ListenUrl.Trim(),
-                PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(),
-                SmtpPassword));
+            var saved = await api.SaveSettingsAsync(CurrentSettings(max, smtpPort));
             AllowSelfRegistration = saved.AllowSelfRegistration;
             RequireMeetingPasswords = saved.RequireMeetingPasswords;
             MaxParticipants = saved.MaxParticipantsPerMeeting.ToString();
@@ -162,6 +186,10 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
             SmtpFrom = saved.SmtpFrom;
             SmtpUser = saved.SmtpUser;
             SmtpPassword = "";
+            EmailProvider = saved.EmailProvider;
+            MailgunDomain = saved.MailgunDomain;
+            MailgunRegion = saved.MailgunRegion;
+            MailgunApiKey = "";
             Status = "Settings saved. Listen URL changes take effect after a server restart.";
         });
     }
@@ -183,11 +211,8 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         await RunAsync(async () =>
         {
             // Test the settings currently shown in the form (unsaved is fine); a blank
-            // password reuses the one already stored on the server.
-            var settings = new ServerSettingsDto(
-                AllowSelfRegistration, RequireMeetingPasswords,
-                int.TryParse(MaxParticipants, out var max) ? max : 25, ListenUrl.Trim(),
-                PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(), SmtpPassword);
+            // secret reuses the one already stored on the server.
+            var settings = CurrentSettings(int.TryParse(MaxParticipants, out var max) ? max : 25, smtpPort);
             await api.SendTestEmailAsync(settings, TestRecipient.Trim());
             Status = $"Test email sent to {TestRecipient.Trim()}. Check that inbox.";
         });

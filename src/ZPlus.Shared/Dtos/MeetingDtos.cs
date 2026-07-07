@@ -4,7 +4,14 @@ public record CreateMeetingRequest(
     string Topic,
     string? Password,
     DateTime? ScheduledStartUtc,
-    int? DurationMinutes);
+    int? DurationMinutes,
+    List<string>? InviteEmails = null);
+
+/// <summary>Result of creating a meeting, including the outcome of any email invitations.</summary>
+public record CreateMeetingResponse(
+    MeetingDto Meeting,
+    int InvitesSent,
+    List<string> InviteFailures);
 
 public record JoinLookupRequest(string MeetingCode, string? Password);
 

@@ -43,6 +43,18 @@ public class Meeting
     public List<ChatMessageRecord> ChatMessages { get; set; } = [];
 }
 
+/// <summary>An email invitation sent (or attempted) for a meeting.</summary>
+public class MeetingInvitation
+{
+    public long Id { get; set; }
+    public Guid MeetingId { get; set; }
+    public string Email { get; set; } = "";
+    public Guid InvitedByUserId { get; set; }
+    public bool Sent { get; set; }
+    public string? Error { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>Historical attendance record (live roster is kept in memory).</summary>
 public class MeetingParticipantRecord
 {

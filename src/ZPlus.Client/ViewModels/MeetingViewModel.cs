@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using ZPlus.Client.Media;
 using ZPlus.Client.Services;
 using ZPlus.Shared.Dtos;
+using ZPlus.Shared.E2ee;
 
 namespace ZPlus.Client.ViewModels;
 
@@ -16,12 +17,15 @@ public partial class MeetingViewModel : ObservableObject
     private readonly string? _password;
     private readonly MeetingHubClient _hub = new();
     private readonly WebRtcManager _webRtc;
+    private readonly MeetingE2ee _e2ee = new();
+    private readonly List<ChatMessageDto> _pendingEncrypted = [];
 
     [ObservableProperty] private string _title = "Connecting…";
     [ObservableProperty] private string _meetingCodeDisplay = "";
     [ObservableProperty] private bool _isMuted;
     [ObservableProperty] private bool _isVideoOn = true;
     [ObservableProperty] private bool _isSelfHost;
+    [ObservableProperty] private bool _isE2eeActive;
     [ObservableProperty] private string _chatText = "";
     [ObservableProperty] private ChatRecipientOption? _selectedRecipient;
     [ObservableProperty] private string? _statusMessage;
@@ -44,8 +48,9 @@ public partial class MeetingViewModel : ObservableObject
         _hub.ParticipantJoined += p => OnUi(() => HandleParticipantJoined(p));
         _hub.ParticipantLeft += p => OnUi(() => HandleParticipantLeft(p));
         _hub.ParticipantStateChanged += p => OnUi(() => FindTile(p.ConnectionId)?.ApplyState(p));
-        _hub.ChatReceived += m => OnUi(() => ChatMessages.Add(m));
+        _hub.ChatReceived += m => OnUi(() => HandleChatReceived(m));
         _hub.HostChanged += p => OnUi(() => HandleHostChanged(p));
+        _hub.SignalReceived += s => OnUi(() => HandleE2eeSignal(s));
         _hub.ForcedMute += () => OnUi(() => ApplyForcedMute());
         _hub.UnmuteRequested += () => OnUi(() => StatusMessage = "The host asks you to unmute.");
         _hub.RemovedFromMeeting += () => OnUi(() => MeetingExited?.Invoke("You were removed from the meeting by the host."));
@@ -74,11 +79,25 @@ public partial class MeetingViewModel : ObservableObject
         {
             Tiles.Add(ParticipantTileViewModel.From(participant));
         }
+        RebuildChatRecipients();
+
+        // End-to-end encryption: alone in the room we mint the meeting key;
+        // otherwise ask the key holder (the host) to wrap it for our public key.
+        if (snapshot.Participants.Count == 0)
+        {
+            _e2ee.CreateMeetingKey();
+            IsE2eeActive = true;
+        }
+        else
+        {
+            var keyHolder = snapshot.Participants.FirstOrDefault(p => p.IsHost) ?? snapshot.Participants[0];
+            await _hub.SendSignalAsync(keyHolder.ConnectionId, MeetingE2ee.SignalPublicKey, _e2ee.PublicKeyBase64);
+        }
+
         foreach (var message in snapshot.RecentChat)
         {
-            ChatMessages.Add(message);
+            HandleChatReceived(message);
         }
-        RebuildChatRecipients();
 
         // Start local media, then offer to everyone already in the room (mesh convention:
         // the newcomer always initiates).
@@ -135,6 +154,53 @@ public partial class MeetingViewModel : ObservableObject
         foreach (var tile in Tiles) tile.IsHost = tile.ConnectionId == newHost.ConnectionId;
         IsSelfHost = _selfTile?.ConnectionId == newHost.ConnectionId;
         StatusMessage = $"{newHost.DisplayName} is now the host.";
+        // If we never received the meeting key (e.g. the old host vanished mid-handshake),
+        // ask the new host.
+        if (!_e2ee.HasKey && !IsSelfHost)
+        {
+            _ = _hub.SendSignalAsync(newHost.ConnectionId, MeetingE2ee.SignalPublicKey, _e2ee.PublicKeyBase64);
+        }
+    }
+
+    // ---- End-to-end encryption ----------------------------------------------
+
+    private void HandleE2eeSignal(SignalMessage signal)
+    {
+        switch (signal.Type)
+        {
+            case MeetingE2ee.SignalPublicKey when _e2ee.HasKey:
+                // A newcomer wants the meeting key: wrap it for their public key.
+                _ = _hub.SendSignalAsync(signal.FromConnectionId, MeetingE2ee.SignalWrappedKey,
+                    _e2ee.WrapKeyFor(signal.Payload));
+                break;
+
+            case MeetingE2ee.SignalWrappedKey when !_e2ee.HasKey:
+                if (_e2ee.TryUnwrapKey(signal.Payload))
+                {
+                    IsE2eeActive = true;
+                    foreach (var pending in _pendingEncrypted) HandleChatReceived(pending);
+                    _pendingEncrypted.Clear();
+                }
+                break;
+        }
+    }
+
+    private void HandleChatReceived(ChatMessageDto message)
+    {
+        if (_e2ee.TryDecrypt(message.Text, out var plaintext))
+        {
+            ChatMessages.Add(message with { Text = plaintext });
+        }
+        else if (MeetingE2ee.IsEncrypted(message.Text))
+        {
+            // Encrypted but the key hasn't arrived yet — hold and replay after unwrap.
+            if (!_e2ee.HasKey) _pendingEncrypted.Add(message);
+            // With a key but undecryptable: drop (tampered or foreign meeting key).
+        }
+        else
+        {
+            ChatMessages.Add(message);
+        }
     }
 
     private void ApplyForcedMute()
@@ -174,10 +240,16 @@ public partial class MeetingViewModel : ObservableObject
     {
         var text = ChatText.Trim();
         if (text.Length == 0) return;
+        if (text.Length > 2000) text = text[..2000];
+        if (!_e2ee.HasKey)
+        {
+            StatusMessage = "Securing chat — try again in a moment.";
+            return;
+        }
         ChatText = "";
         try
         {
-            await _hub.SendChatAsync(text, SelectedRecipient?.UserId);
+            await _hub.SendChatAsync(_e2ee.Encrypt(text), SelectedRecipient?.UserId);
         }
         catch (Exception)
         {
@@ -231,6 +303,7 @@ public partial class MeetingViewModel : ObservableObject
     {
         await _webRtc.DisposeAsync();
         await _hub.DisposeAsync();
+        _e2ee.Dispose();
     }
 
     // ---- Helpers -----------------------------------------------------------------

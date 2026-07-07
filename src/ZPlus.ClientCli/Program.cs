@@ -85,9 +85,9 @@ while (true)
             var response = await http.PostAsJsonAsync("/api/meetings",
                 new CreateMeetingRequest($"{me!.DisplayName}'s Meeting", null, null, null));
             if (!response.IsSuccessStatusCode) { Console.WriteLine(await Detail(response)); break; }
-            var meeting = (await response.Content.ReadFromJsonAsync<MeetingDto>())!;
-            Console.WriteLine($"Meeting ID: {meeting.MeetingCode} — share it with participants.");
-            await RunMeeting(meeting.MeetingCode, null);
+            var created = (await response.Content.ReadFromJsonAsync<CreateMeetingResponse>())!;
+            Console.WriteLine($"Meeting ID: {created.Meeting.MeetingCode} — share it with participants.");
+            await RunMeeting(created.Meeting.MeetingCode, null);
             break;
         }
         case "2":
@@ -117,6 +117,8 @@ while (true)
 async Task RunMeeting(string meetingCode, string? meetingPassword)
 {
     var participants = new Dictionary<string, ParticipantDto>(); // connectionId -> participant
+    using var e2ee = new ZPlus.Shared.E2ee.MeetingE2ee();
+    var pendingEncrypted = new List<ChatMessageDto>();
 
     var hub = new HubConnectionBuilder()
         .WithUrl($"{serverUrl}/hubs/meeting", o => o.AccessTokenProvider = () => Task.FromResult<string?>(token))
@@ -124,6 +126,19 @@ async Task RunMeeting(string meetingCode, string? meetingPassword)
         .Build();
 
     var ended = new TaskCompletionSource();
+
+    void ShowChat(ChatMessageDto m)
+    {
+        if (e2ee.TryDecrypt(m.Text, out var plaintext))
+            Console.WriteLine($"{(m.IsPrivate ? "[private] " : "")}{m.SenderDisplayName}: {plaintext}");
+        else if (ZPlus.Shared.E2ee.MeetingE2ee.IsEncrypted(m.Text))
+        {
+            if (!e2ee.HasKey) lock (pendingEncrypted) pendingEncrypted.Add(m);
+            // With a key but undecryptable: drop (tampered or foreign key).
+        }
+        else
+            Console.WriteLine($"{(m.IsPrivate ? "[private] " : "")}{m.SenderDisplayName}: {m.Text}");
+    }
 
     hub.On<ParticipantDto>(HubEvents.ParticipantJoined, p =>
     {
@@ -139,12 +154,32 @@ async Task RunMeeting(string meetingCode, string? meetingPassword)
     {
         if (participants.ContainsKey(p.ConnectionId)) participants[p.ConnectionId] = p;
     });
-    hub.On<ChatMessageDto>(HubEvents.ChatReceived, m =>
-        Console.WriteLine($"{(m.IsPrivate ? "[private] " : "")}{m.SenderDisplayName}: {m.Text}"));
+    hub.On<ChatMessageDto>(HubEvents.ChatReceived, ShowChat);
     hub.On<ParticipantDto>(HubEvents.HostChanged, p =>
     {
         if (participants.ContainsKey(p.ConnectionId)) participants[p.ConnectionId] = p;
         Console.WriteLine($"* {p.DisplayName} is now the host");
+        if (!e2ee.HasKey)
+            _ = hub.InvokeAsync(HubMethods.SendSignal, p.ConnectionId,
+                ZPlus.Shared.E2ee.MeetingE2ee.SignalPublicKey, e2ee.PublicKeyBase64);
+    });
+    hub.On<SignalMessage>(HubEvents.SignalReceived, s =>
+    {
+        if (s.Type == ZPlus.Shared.E2ee.MeetingE2ee.SignalPublicKey && e2ee.HasKey)
+        {
+            _ = hub.InvokeAsync(HubMethods.SendSignal, s.FromConnectionId,
+                ZPlus.Shared.E2ee.MeetingE2ee.SignalWrappedKey, e2ee.WrapKeyFor(s.Payload));
+        }
+        else if (s.Type == ZPlus.Shared.E2ee.MeetingE2ee.SignalWrappedKey && !e2ee.HasKey &&
+                 e2ee.TryUnwrapKey(s.Payload))
+        {
+            Console.WriteLine("* End-to-end encryption active");
+            lock (pendingEncrypted)
+            {
+                foreach (var m in pendingEncrypted) ShowChat(m);
+                pendingEncrypted.Clear();
+            }
+        }
     });
     hub.On(HubEvents.UnmuteRequested, () => Console.WriteLine("* The host asks you to unmute"));
     hub.On(HubEvents.ForcedMute, () => Console.WriteLine("* The host muted you"));
@@ -171,7 +206,21 @@ async Task RunMeeting(string meetingCode, string? meetingPassword)
         Console.WriteLine($"=== {snapshot.Meeting.Topic} (ID {snapshot.Meeting.MeetingCode}) ===");
         Console.WriteLine($"{participants.Count} participant(s). You are {(snapshot.Self.IsHost ? "the HOST" : "a participant")}.");
         Console.WriteLine("Console client: chat and roster only — no audio/video. Type /help for commands.");
-        foreach (var m in snapshot.RecentChat) Console.WriteLine($"  {m.SenderDisplayName}: {m.Text}");
+
+        // End-to-end encryption: alone → mint the meeting key; otherwise request it from the host.
+        if (snapshot.Participants.Count == 0)
+        {
+            e2ee.CreateMeetingKey();
+            Console.WriteLine("* End-to-end encryption active");
+        }
+        else
+        {
+            var keyHolder = snapshot.Participants.FirstOrDefault(p => p.IsHost) ?? snapshot.Participants[0];
+            await hub.InvokeAsync(HubMethods.SendSignal, keyHolder.ConnectionId,
+                ZPlus.Shared.E2ee.MeetingE2ee.SignalPublicKey, e2ee.PublicKeyBase64);
+        }
+
+        foreach (var m in snapshot.RecentChat) ShowChat(m);
 
         // Read stdin on a worker task so a server-side end can close the session too.
         var selfConnectionId = snapshot.Self.ConnectionId;
@@ -212,10 +261,12 @@ async Task RunMeeting(string meetingCode, string? meetingPassword)
                                 p.DisplayName.StartsWith(parts[0], StringComparison.OrdinalIgnoreCase))
                             : null;
                         if (target is null) Console.WriteLine("Usage: /msg <name> <text>   (name may be a prefix)");
-                        else await hub.InvokeAsync(HubMethods.SendChat, parts[1], target.UserId);
+                        else if (!e2ee.HasKey) Console.WriteLine("* Securing chat — try again in a moment");
+                        else await hub.InvokeAsync(HubMethods.SendChat, e2ee.Encrypt(parts[1]), target.UserId);
                     }
                     else if (line.StartsWith('/')) Console.WriteLine("Unknown command. /help for commands.");
-                    else await hub.InvokeAsync(HubMethods.SendChat, line, null);
+                    else if (!e2ee.HasKey) Console.WriteLine("* Securing chat — try again in a moment");
+                    else await hub.InvokeAsync(HubMethods.SendChat, e2ee.Encrypt(line), null);
                 }
                 catch (Exception ex)
                 {

@@ -144,7 +144,8 @@ public class MeetingHub(
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         text = text.Trim();
-        if (text.Length > 4000) text = text[..4000];
+        // Truncating would corrupt end-to-end encrypted payloads, so reject instead.
+        if (text.Length > 8000) throw new HubException("Message too long.");
 
         var found = state.Find(Context.ConnectionId) ?? throw new HubException("You are not in a meeting.");
         var (meeting, sender) = found;

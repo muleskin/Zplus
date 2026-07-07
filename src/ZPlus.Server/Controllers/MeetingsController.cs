@@ -15,18 +15,34 @@ namespace ZPlus.Server.Controllers;
 public class MeetingsController(
     AppDbContext db,
     SettingsService settings,
-    PasswordService passwords) : ControllerBase
+    PasswordService passwords,
+    EmailService email) : ControllerBase
 {
+    private const int MaxInvites = 50;
+
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpPost]
-    public async Task<ActionResult<MeetingDto>> Create(CreateMeetingRequest request)
+    public async Task<ActionResult<CreateMeetingResponse>> Create(CreateMeetingRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Topic))
             return BadRequest("A meeting topic is required.");
 
         if (string.IsNullOrEmpty(request.Password) && (await settings.GetAsync()).RequireMeetingPasswords)
             return BadRequest("Server policy requires a password on every meeting.");
+
+        var inviteEmails = (request.InviteEmails ?? [])
+            .Select(e => e.Trim().ToLowerInvariant())
+            .Where(e => e.Length > 0)
+            .Distinct()
+            .ToList();
+        if (inviteEmails.Count > MaxInvites)
+            return BadRequest($"At most {MaxInvites} invitations per meeting.");
+        var invalid = inviteEmails.Where(e => !e.Contains('@') || e.Contains(' ')).ToList();
+        if (invalid.Count > 0)
+            return BadRequest($"Invalid email address: {invalid[0]}");
+        if (inviteEmails.Count > 0 && !await email.IsConfiguredAsync())
+            return BadRequest("Email invitations are not available: the administrator has not configured an SMTP server.");
 
         var host = await db.Users.FindAsync(CurrentUserId);
         if (host is null || host.IsDisabled) return Unauthorized();
@@ -53,7 +69,27 @@ public class MeetingsController(
 
         db.Meetings.Add(meeting);
         await db.SaveChangesAsync();
-        return Ok(ToDto(meeting, host.DisplayName));
+
+        // Send invitations (best effort per address) and record each attempt.
+        int sent = 0;
+        var failures = new List<string>();
+        foreach (var address in inviteEmails)
+        {
+            string? error = await email.SendInviteAsync(meeting, address, request.Password, host.DisplayName);
+            db.MeetingInvitations.Add(new MeetingInvitation
+            {
+                MeetingId = meeting.Id,
+                Email = address,
+                InvitedByUserId = host.Id,
+                Sent = error is null,
+                Error = error,
+            });
+            if (error is null) sent++;
+            else failures.Add($"{address}: {error}");
+        }
+        if (inviteEmails.Count > 0) await db.SaveChangesAsync();
+
+        return Ok(new CreateMeetingResponse(ToDto(meeting, host.DisplayName), sent, failures));
     }
 
     /// <summary>Looks up a meeting by its code and validates the password, without joining it.</summary>

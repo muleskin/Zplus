@@ -21,6 +21,12 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     [ObservableProperty] private bool _requireMeetingPasswords;
     [ObservableProperty] private string _maxParticipants = "25";
     [ObservableProperty] private string _listenUrl = "";
+    [ObservableProperty] private string _publicUrl = "";
+    [ObservableProperty] private string _smtpHost = "";
+    [ObservableProperty] private string _smtpPort = "587";
+    [ObservableProperty] private string _smtpFrom = "";
+    [ObservableProperty] private string _smtpUser = "";
+    [ObservableProperty] private string _smtpPassword = "";
 
     public ObservableCollection<UserRowViewModel> Users { get; } = [];
     public ObservableCollection<ActiveMeetingDto> ActiveMeetings { get; } = [];
@@ -116,6 +122,12 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         RequireMeetingPasswords = settings.RequireMeetingPasswords;
         MaxParticipants = settings.MaxParticipantsPerMeeting.ToString();
         ListenUrl = settings.ListenUrl;
+        PublicUrl = settings.PublicUrl;
+        SmtpHost = settings.SmtpHost;
+        SmtpPort = settings.SmtpPort.ToString();
+        SmtpFrom = settings.SmtpFrom;
+        SmtpUser = settings.SmtpUser;
+        SmtpPassword = "";
     }
 
     [RelayCommand]
@@ -126,14 +138,27 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
             Status = "Max participants must be a number.";
             return;
         }
+        if (!int.TryParse(SmtpPort, out var smtpPort))
+        {
+            Status = "SMTP port must be a number.";
+            return;
+        }
         await RunAsync(async () =>
         {
-            var saved = await api.SaveSettingsAsync(
-                new ServerSettingsDto(AllowSelfRegistration, RequireMeetingPasswords, max, ListenUrl.Trim()));
+            var saved = await api.SaveSettingsAsync(new ServerSettingsDto(
+                AllowSelfRegistration, RequireMeetingPasswords, max, ListenUrl.Trim(),
+                PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(),
+                SmtpPassword));
             AllowSelfRegistration = saved.AllowSelfRegistration;
             RequireMeetingPasswords = saved.RequireMeetingPasswords;
             MaxParticipants = saved.MaxParticipantsPerMeeting.ToString();
             ListenUrl = saved.ListenUrl;
+            PublicUrl = saved.PublicUrl;
+            SmtpHost = saved.SmtpHost;
+            SmtpPort = saved.SmtpPort.ToString();
+            SmtpFrom = saved.SmtpFrom;
+            SmtpUser = saved.SmtpUser;
+            SmtpPassword = "";
             Status = "Settings saved. Listen URL changes take effect after a server restart.";
         });
     }

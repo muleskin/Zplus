@@ -25,12 +25,22 @@ public record AdminUpdateUserRequest(string? DisplayName, string? Role, bool? Is
 
 public record AdminResetPasswordRequest(string NewPassword);
 
-/// <summary>Server-wide configuration, stored in the database and editable from the admin app.</summary>
+/// <summary>
+/// Server-wide configuration, stored in the database and editable from the admin app.
+/// SmtpPassword is write-only: reads always return "" and saving an empty value keeps
+/// the stored password; PublicUrl is the externally reachable address used in invite links.
+/// </summary>
 public record ServerSettingsDto(
     bool AllowSelfRegistration,
     bool RequireMeetingPasswords,
     int MaxParticipantsPerMeeting,
-    string ListenUrl);
+    string ListenUrl,
+    string PublicUrl = "",
+    string SmtpHost = "",
+    int SmtpPort = 587,
+    string SmtpFrom = "",
+    string SmtpUser = "",
+    string SmtpPassword = "");
 
 public record ActiveMeetingDto(
     Guid Id,

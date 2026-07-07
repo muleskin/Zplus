@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MeetingParticipantRecord> MeetingParticipants => Set<MeetingParticipantRecord>();
     public DbSet<ChatMessageRecord> ChatMessages => Set<ChatMessageRecord>();
     public DbSet<ServerSetting> ServerSettings => Set<ServerSetting>();
+    public DbSet<MeetingInvitation> MeetingInvitations => Set<MeetingInvitation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany(u => u.HostedMeetings)
             .HasForeignKey(m => m.HostUserId);
         modelBuilder.Entity<MeetingParticipantRecord>().HasIndex(p => p.MeetingId);
+        modelBuilder.Entity<MeetingInvitation>().HasIndex(i => i.MeetingId);
         modelBuilder.Entity<ChatMessageRecord>().HasIndex(c => c.MeetingId);
     }
 }

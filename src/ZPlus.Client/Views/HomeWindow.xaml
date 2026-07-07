@@ -84,6 +84,8 @@
                         </Grid>
                         <TextBlock Text="Password (optional)" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
                         <TextBox Text="{Binding SchedulePassword, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="Invite by email (comma-separated, optional)" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
+                        <TextBox Text="{Binding ScheduleInvites, UpdateSourceTrigger=PropertyChanged}"/>
                         <Button Style="{StaticResource PrimaryButton}" Content="Schedule" Margin="0,14,0,0"
                                 Command="{Binding ScheduleMeetingCommand}"
                                 IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>

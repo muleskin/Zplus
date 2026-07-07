@@ -6,14 +6,17 @@ using ZPlus.Shared.Dtos;
 namespace ZPlus.Server.Services;
 
 /// <summary>Reads and writes server-wide settings stored in the database.</summary>
-public class SettingsService(AppDbContext db)
+public class SettingsService(AppDbContext db, SecretProtector protector)
 {
+    private const string SmtpPasswordKey = "SmtpPassword";
+
     public static readonly ServerSettingsDto Defaults = new(
         AllowSelfRegistration: true,
         RequireMeetingPasswords: false,
         MaxParticipantsPerMeeting: 25,
         ListenUrl: "http://0.0.0.0:5199");
 
+    /// <summary>Returns the settings with SmtpPassword blanked (it is write-only through the API).</summary>
     public async Task<ServerSettingsDto> GetAsync()
     {
         var stored = await db.ServerSettings.AsNoTracking().ToDictionaryAsync(s => s.Key, s => s.Value);
@@ -21,7 +24,20 @@ public class SettingsService(AppDbContext db)
             GetBool(stored, nameof(ServerSettingsDto.AllowSelfRegistration), Defaults.AllowSelfRegistration),
             GetBool(stored, nameof(ServerSettingsDto.RequireMeetingPasswords), Defaults.RequireMeetingPasswords),
             GetInt(stored, nameof(ServerSettingsDto.MaxParticipantsPerMeeting), Defaults.MaxParticipantsPerMeeting),
-            stored.GetValueOrDefault(nameof(ServerSettingsDto.ListenUrl), Defaults.ListenUrl));
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.ListenUrl), Defaults.ListenUrl),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.PublicUrl), ""),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.SmtpHost), ""),
+            GetInt(stored, nameof(ServerSettingsDto.SmtpPort), Defaults.SmtpPort),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.SmtpFrom), ""),
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.SmtpUser), ""),
+            SmtpPassword: "");
+    }
+
+    /// <summary>Decrypts the stored SMTP password for the mailer. Never exposed via the API.</summary>
+    public async Task<string> GetSmtpPasswordAsync()
+    {
+        var row = await db.ServerSettings.AsNoTracking().SingleOrDefaultAsync(s => s.Key == SmtpPasswordKey);
+        return row is null ? "" : protector.Unprotect(row.Value) ?? "";
     }
 
     public async Task SaveAsync(ServerSettingsDto settings)
@@ -30,6 +46,14 @@ public class SettingsService(AppDbContext db)
         await Upsert(nameof(ServerSettingsDto.RequireMeetingPasswords), settings.RequireMeetingPasswords.ToString());
         await Upsert(nameof(ServerSettingsDto.MaxParticipantsPerMeeting), settings.MaxParticipantsPerMeeting.ToString());
         await Upsert(nameof(ServerSettingsDto.ListenUrl), settings.ListenUrl.Trim());
+        await Upsert(nameof(ServerSettingsDto.PublicUrl), settings.PublicUrl.Trim().TrimEnd('/'));
+        await Upsert(nameof(ServerSettingsDto.SmtpHost), settings.SmtpHost.Trim());
+        await Upsert(nameof(ServerSettingsDto.SmtpPort), settings.SmtpPort.ToString());
+        await Upsert(nameof(ServerSettingsDto.SmtpFrom), settings.SmtpFrom.Trim());
+        await Upsert(nameof(ServerSettingsDto.SmtpUser), settings.SmtpUser.Trim());
+        // Write-only: an empty password means "keep the current one".
+        if (!string.IsNullOrEmpty(settings.SmtpPassword))
+            await Upsert(SmtpPasswordKey, protector.Protect(settings.SmtpPassword));
         await db.SaveChangesAsync();
     }
 

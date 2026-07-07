@@ -113,25 +113,57 @@
 
             <!-- ===================== SERVER SETTINGS ===================== -->
             <TabItem Header="Server settings">
-                <StackPanel Margin="16" MaxWidth="520" HorizontalAlignment="Left">
-                    <CheckBox IsChecked="{Binding AllowSelfRegistration}" Foreground="{StaticResource TextFg}"
-                              Content="Allow users to register their own accounts" Margin="0,0,0,12"/>
-                    <CheckBox IsChecked="{Binding RequireMeetingPasswords}" Foreground="{StaticResource TextFg}"
-                              Content="Require a password on every meeting" Margin="0,0,0,12"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBlock Text="Maximum participants per meeting:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox Text="{Binding MaxParticipants, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
-                    </StackPanel>
-                    <TextBlock Text="Server listen URL (restart required to apply)"
-                               Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding ListenUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource PrimaryButton}" Content="Save settings"
-                                Command="{Binding SaveSettingsCommand}"/>
-                        <Button Style="{StaticResource GhostButton}" Content="Reload" Margin="8,0,0,0"
-                                Command="{Binding RefreshSettingsCommand}"/>
-                    </StackPanel>
-                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Policies" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <CheckBox IsChecked="{Binding AllowSelfRegistration}" Foreground="{StaticResource TextFg}"
+                                      Content="Allow users to register their own accounts" Margin="0,0,0,12"/>
+                            <CheckBox IsChecked="{Binding RequireMeetingPasswords}" Foreground="{StaticResource TextFg}"
+                                      Content="Require a password on every meeting" Margin="0,0,0,12"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <TextBlock Text="Maximum participants per meeting:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Text="{Binding MaxParticipants, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+                            </StackPanel>
+                            <TextBlock Text="Server listen URL (restart required to apply)"
+                                       Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding ListenUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Public URL — the address users and invite links reach, e.g. http://192.168.1.10:5199"
+                                       Foreground="{StaticResource MutedFg}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding PublicUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource PrimaryButton}" Content="Save settings"
+                                        Command="{Binding SaveSettingsCommand}"/>
+                                <Button Style="{StaticResource GhostButton}" Content="Reload" Margin="8,0,0,0"
+                                        Command="{Binding RefreshSettingsCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Email (meeting invitations)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBlock Text="Leave the SMTP host empty to disable email."
+                                       Foreground="{StaticResource MutedFg}" Margin="0,0,0,10"/>
+                            <TextBlock Text="SMTP host" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="Port:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Text="{Binding SmtpPort, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+                                <TextBlock Text="(587 uses STARTTLS)" Foreground="{StaticResource MutedFg}"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="From address" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SmtpFrom, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                            <TextBlock Text="SMTP user (blank if no authentication)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SmtpUser, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                            <TextBlock Text="SMTP password (blank = keep the saved one)" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SmtpPassword, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
 
             <!-- ===================== ACTIVE MEETINGS ===================== -->

@@ -20,8 +20,8 @@ public class ApiClient
     public Task<AuthResponse> LoginAsync(LoginRequest request) =>
         PostAsync<LoginRequest, AuthResponse>("api/auth/login", request, authorized: false);
 
-    public Task<MeetingDto> CreateMeetingAsync(CreateMeetingRequest request) =>
-        PostAsync<CreateMeetingRequest, MeetingDto>("api/meetings", request);
+    public Task<CreateMeetingResponse> CreateMeetingAsync(CreateMeetingRequest request) =>
+        PostAsync<CreateMeetingRequest, CreateMeetingResponse>("api/meetings", request);
 
     public Task<MeetingDto> LookupMeetingAsync(JoinLookupRequest request) =>
         PostAsync<JoinLookupRequest, MeetingDto>("api/meetings/lookup", request);

@@ -23,7 +23,9 @@ const string Usage = """
       users reset-password <email> <new password>
       settings get
       settings set [--allow-registration on|off] [--require-meeting-passwords on|off]
-                   [--max-participants <n>] [--listen-url <url>]
+                   [--max-participants <n>] [--listen-url <url>] [--public-url <url>]
+                   [--smtp-host <host>] [--smtp-port <n>] [--smtp-from <email>]
+                   [--smtp-user <user>] [--smtp-password <pw>]
       meetings list
       meetings end <meeting id>
 
@@ -138,6 +140,12 @@ async Task<int> SettingsGet()
     Console.WriteLine($"require-meeting-passwords   {(s.RequireMeetingPasswords ? "on" : "off")}");
     Console.WriteLine($"max-participants            {s.MaxParticipantsPerMeeting}");
     Console.WriteLine($"listen-url                  {s.ListenUrl}   (restart required to apply)");
+    Console.WriteLine($"public-url                  {(s.PublicUrl == "" ? "(not set — invite links disabled)" : s.PublicUrl)}");
+    Console.WriteLine($"smtp-host                   {(s.SmtpHost == "" ? "(not set — email disabled)" : s.SmtpHost)}");
+    Console.WriteLine($"smtp-port                   {s.SmtpPort}");
+    Console.WriteLine($"smtp-from                   {s.SmtpFrom}");
+    Console.WriteLine($"smtp-user                   {s.SmtpUser}");
+    Console.WriteLine($"smtp-password               (write-only; set with --smtp-password)");
     return 0;
 }
 
@@ -151,6 +159,13 @@ async Task<int> SettingsSet()
         MaxParticipantsPerMeeting = options.TryGetValue("max-participants", out var m) && int.TryParse(m, out var max)
             ? max : current.MaxParticipantsPerMeeting,
         ListenUrl = options.GetValueOrDefault("listen-url") ?? current.ListenUrl,
+        PublicUrl = options.GetValueOrDefault("public-url") ?? current.PublicUrl,
+        SmtpHost = options.GetValueOrDefault("smtp-host") ?? current.SmtpHost,
+        SmtpPort = options.TryGetValue("smtp-port", out var sp) && int.TryParse(sp, out var smtpPort)
+            ? smtpPort : current.SmtpPort,
+        SmtpFrom = options.GetValueOrDefault("smtp-from") ?? current.SmtpFrom,
+        SmtpUser = options.GetValueOrDefault("smtp-user") ?? current.SmtpUser,
+        SmtpPassword = options.GetValueOrDefault("smtp-password") ?? "",
     };
     if (updated == current) return Fail("Nothing to change. Run 'zplus-admin help' for the available flags.");
 

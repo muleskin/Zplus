@@ -14,6 +14,7 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty] private string _joinPassword = "";
     [ObservableProperty] private string _scheduleTopic = "";
     [ObservableProperty] private string _schedulePassword = "";
+    [ObservableProperty] private string _scheduleInvites = "";
     [ObservableProperty] private DateTime _scheduleDate = DateTime.Today.AddDays(1);
     [ObservableProperty] private string _scheduleTime = "09:00";
     [ObservableProperty] private string _scheduleDuration = "60";
@@ -34,8 +35,8 @@ public partial class HomeViewModel : ObservableObject
         await RunAsync(async () =>
         {
             var topic = $"{AppSession.Current.User?.DisplayName}'s Meeting";
-            var meeting = await _api.CreateMeetingAsync(new CreateMeetingRequest(topic, null, null, null));
-            OpenMeetingRequested?.Invoke(meeting.MeetingCode, null);
+            var created = await _api.CreateMeetingAsync(new CreateMeetingRequest(topic, null, null, null));
+            OpenMeetingRequested?.Invoke(created.Meeting.MeetingCode, null);
         });
     }
 
@@ -74,15 +75,26 @@ public partial class HomeViewModel : ObservableObject
             Error = "Enter the duration in minutes.";
             return;
         }
+        var invites = ScheduleInvites
+            .Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
         await RunAsync(async () =>
         {
             var startUtc = (ScheduleDate.Date + time).ToUniversalTime();
             var password = string.IsNullOrEmpty(SchedulePassword) ? null : SchedulePassword;
-            var meeting = await _api.CreateMeetingAsync(
-                new CreateMeetingRequest(ScheduleTopic.Trim(), password, startUtc, duration));
-            Info = $"Scheduled \"{meeting.Topic}\" — meeting ID {meeting.MeetingCode}";
+            var created = await _api.CreateMeetingAsync(
+                new CreateMeetingRequest(ScheduleTopic.Trim(), password, startUtc, duration,
+                    invites.Count > 0 ? invites : null));
+
+            Info = $"Scheduled \"{created.Meeting.Topic}\" — meeting ID {created.Meeting.MeetingCode}";
+            if (created.InvitesSent > 0)
+                Info += $" · {created.InvitesSent} invitation(s) emailed";
+            if (created.InviteFailures.Count > 0)
+                Error = $"Some invitations failed: {string.Join("; ", created.InviteFailures.Take(3))}";
+
             ScheduleTopic = "";
             SchedulePassword = "";
+            ScheduleInvites = "";
             await RefreshMeetingsAsync();
         });
     }

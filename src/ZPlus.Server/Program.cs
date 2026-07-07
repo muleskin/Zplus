@@ -88,6 +88,7 @@ builder.Services.AddSingleton(new JwtConfig(jwtSigningKey));
 builder.Services.AddSingleton<MeetingStateStore>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<SettingsService>();
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
@@ -139,5 +140,40 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<MeetingHub>("/hubs/meeting");
 app.MapGet("/", () => "Z+ server is running.");
+
+// Invitation link target: a small public page with the meeting details.
+app.MapGet("/join/{code}", async (string code, AppDbContext db) =>
+{
+    var digits = new string(code.Where(char.IsDigit).ToArray());
+    string normalized = digits.Length == 9 ? $"{digits[..3]}-{digits[3..6]}-{digits[6..]}" : code.Trim();
+    var meeting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+        .SingleOrDefaultAsync(db.Meetings, m => m.MeetingCode == normalized && m.EndedAtUtc == null);
+
+    string inner = meeting is null
+        ? "<h2>Meeting not found</h2><p>This invitation link is no longer valid.</p>"
+        : $"""
+           <h2>{System.Net.WebUtility.HtmlEncode(meeting.Topic)}</h2>
+           <p>{(meeting.ScheduledStartUtc is null
+                 ? "This meeting is available now."
+                 : $"Scheduled for {meeting.ScheduledStartUtc.Value:dddd, MMMM d yyyy HH:mm} UTC")}</p>
+           <p class="code">{meeting.MeetingCode}</p>
+           <p>Open the <b>Z+</b> app, sign in, choose <b>Join a meeting</b> and enter the meeting ID above.{(
+               meeting.PasswordHash is null ? "" : " This meeting also requires the password from your invitation.")}</p>
+           """;
+
+    string html = $$"""
+        <!doctype html><html><head><meta charset="utf-8"><title>Z+ meeting invitation</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; background: #1B1D22; color: #F2F2F2;
+                 display: flex; justify-content: center; padding-top: 8vh; }
+          .card { background: #24262E; border-radius: 12px; padding: 32px 40px; max-width: 420px; }
+          .brand { color: #2D8CFF; font-size: 28px; font-weight: bold; }
+          .code { font-size: 30px; font-weight: bold; letter-spacing: 2px; color: #2D8CFF; }
+          p { color: #C9CED6; line-height: 1.5; }
+        </style></head>
+        <body><div class="card"><div class="brand">Z+</div>{{inner}}</div></body></html>
+        """;
+    return Results.Content(html, "text/html");
+});
 
 app.Run();

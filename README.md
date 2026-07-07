@@ -87,13 +87,18 @@ Both console tools also run on Windows if you prefer a terminal or need scriptin
      sign in or join meetings. Only super admins can create/modify super admin accounts;
      nobody can demote or disable themselves.
    - **Server settings** — allow/deny self-registration, require passwords on all meetings,
-     cap participants per meeting, change the server listen URL (restart required).
-     All stored in the database and enforced live.
+     cap participants per meeting, change the server listen URL (restart required), and
+     configure email invitations: SMTP host/port/from/credentials plus the Public URL used
+     in invite links. All stored in the database and enforced live.
    - **Active meetings** — see currently running meetings with participant counts and
      force-end any meeting (participants are notified instantly).
 
 ## Security model
 
+- **End-to-end encryption.** Audio/video flows peer-to-peer over DTLS-SRTP and never
+  touches the server. Chat is AES-256-GCM encrypted with a per-meeting key that
+  participants exchange directly via ECDH (P-256) — the server relays and stores only
+  `ZE1$…` ciphertext, so neither admins nor database access can read messages.
 - **Passwords are hashed, then encrypted (AES + HMAC).** Every password (user accounts and
   meeting passwords) is first one-way hashed with PBKDF2 — so the original password can never
   be recovered — and the hash is then wrapped in an AES-256-CBC + HMAC-SHA256

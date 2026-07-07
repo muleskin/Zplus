@@ -20,6 +20,9 @@
             <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
             <TextBlock Text="{Binding MeetingCodeDisplay}" Foreground="{StaticResource MutedFg}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Text="🔒 End-to-end encrypted" Foreground="#FF7BE28B" FontSize="12"
+                       Margin="16,0,0,0" VerticalAlignment="Center"
+                       Visibility="{Binding IsE2eeActive, Converter={StaticResource BoolToVis}}"/>
             <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource AccentBg}"
                        Margin="24,0,0,0" VerticalAlignment="Center"/>
         </StackPanel>

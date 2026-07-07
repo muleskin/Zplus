@@ -30,6 +30,7 @@
     <Compile Include="..\ZPlus.Client\Services\AppSession.cs" Link="Services\AppSession.cs" />
     <Compile Include="..\ZPlus.Client\Services\ApiClient.cs" Link="Services\ApiClient.cs" />
     <Compile Include="..\ZPlus.Client\Services\MeetingHubClient.cs" Link="Services\MeetingHubClient.cs" />
+    <Compile Include="..\ZPlus.Client\Services\DeepLink.cs" Link="Services\DeepLink.cs" />
     <Compile Include="..\ZPlus.Client\ViewModels\LoginViewModel.cs" Link="ViewModels\LoginViewModel.cs" />
     <Compile Include="..\ZPlus.Client\ViewModels\HomeViewModel.cs" Link="ViewModels\HomeViewModel.cs" />
   </ItemGroup>

@@ -141,25 +141,36 @@ app.MapControllers();
 app.MapHub<MeetingHub>("/hubs/meeting");
 app.MapGet("/", () => "Z+ server is running.");
 
-// Invitation link target: a small public page with the meeting details.
-app.MapGet("/join/{code}", async (string code, AppDbContext db) =>
+// Invitation link target: a small public page with the meeting details and a button
+// that launches the Z+ app straight into the join screen via the zplus:// deep link.
+app.MapGet("/join/{code}", async (string code, string? pw, AppDbContext db, SettingsService settings) =>
 {
     var digits = new string(code.Where(char.IsDigit).ToArray());
     string normalized = digits.Length == 9 ? $"{digits[..3]}-{digits[3..6]}-{digits[6..]}" : code.Trim();
     var meeting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
         .SingleOrDefaultAsync(db.Meetings, m => m.MeetingCode == normalized && m.EndedAtUtc == null);
 
-    string inner = meeting is null
-        ? "<h2>Meeting not found</h2><p>This invitation link is no longer valid.</p>"
-        : $"""
+    string inner;
+    if (meeting is null)
+    {
+        inner = "<h2>Meeting not found</h2><p>This invitation link is no longer valid.</p>";
+    }
+    else
+    {
+        var serverUrl = (await settings.GetAsync()).PublicUrl;
+        var deepLink = ZPlus.Shared.ZplusLink.BuildJoin(serverUrl, meeting.MeetingCode, pw);
+        inner = $"""
            <h2>{System.Net.WebUtility.HtmlEncode(meeting.Topic)}</h2>
            <p>{(meeting.ScheduledStartUtc is null
                  ? "This meeting is available now."
                  : $"Scheduled for {meeting.ScheduledStartUtc.Value:dddd, MMMM d yyyy HH:mm} UTC")}</p>
            <p class="code">{meeting.MeetingCode}</p>
-           <p>Open the <b>Z+</b> app, sign in, choose <b>Join a meeting</b> and enter the meeting ID above.{(
-               meeting.PasswordHash is null ? "" : " This meeting also requires the password from your invitation.")}</p>
+           <a class="btn" href="{System.Net.WebUtility.HtmlEncode(deepLink)}">Open in Z+ app</a>
+           <p class="hint">This opens the Z+ desktop app and takes you to the join screen. If nothing
+           happens, open Z+ manually, choose <b>Join a meeting</b> and enter the meeting ID above.{(
+               meeting.PasswordHash is null ? "" : " Use the password from your invitation.")}</p>
            """;
+    }
 
     string html = $$"""
         <!doctype html><html><head><meta charset="utf-8"><title>Z+ meeting invitation</title>
@@ -170,6 +181,9 @@ app.MapGet("/join/{code}", async (string code, AppDbContext db) =>
           .brand { color: #2D8CFF; font-size: 28px; font-weight: bold; }
           .code { font-size: 30px; font-weight: bold; letter-spacing: 2px; color: #2D8CFF; }
           p { color: #C9CED6; line-height: 1.5; }
+          .hint { font-size: 13px; color: #9AA0AA; }
+          .btn { display: inline-block; margin: 8px 0 16px; padding: 12px 22px; background: #2D8CFF;
+                 color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600; }
         </style></head>
         <body><div class="card"><div class="brand">Z+</div>{{inner}}</div></body></html>
         """;

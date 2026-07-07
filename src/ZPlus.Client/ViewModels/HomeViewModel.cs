@@ -57,6 +57,19 @@ public partial class HomeViewModel : ObservableObject
         });
     }
 
+    /// <summary>
+    /// If the app was launched (or reactivated) via a zplus:// invitation link, fill in the
+    /// Join fields and go straight into the meeting. Call after the Home screen is shown.
+    /// </summary>
+    public async Task TryPendingJoinAsync()
+    {
+        var pending = Services.DeepLink.TakePendingJoin();
+        if (pending is null) return;
+        JoinCode = pending.Code;
+        JoinPassword = pending.Password ?? "";
+        await JoinMeetingAsync();
+    }
+
     [RelayCommand]
     private async Task ScheduleMeetingAsync()
     {

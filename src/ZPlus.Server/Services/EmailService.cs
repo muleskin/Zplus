@@ -52,9 +52,13 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
         body.AppendLine();
         if (!string.IsNullOrWhiteSpace(config.PublicUrl))
         {
-            body.AppendLine($"Invitation link: {config.PublicUrl}/join/{meeting.MeetingCode}");
+            var pw = string.IsNullOrEmpty(meetingPassword) ? "" : $"?pw={Uri.EscapeDataString(meetingPassword)}";
+            body.AppendLine($"Join the meeting: {config.PublicUrl}/join/{meeting.MeetingCode}{pw}");
+            body.AppendLine("(opens a page with a button to launch the Z+ app)");
             body.AppendLine();
-            body.AppendLine($"To join: open Z+, set the server to {config.PublicUrl}, and enter the meeting ID above.");
+            // Direct one-click link for mail clients that recognise custom URI schemes.
+            body.AppendLine("One-click join (if your app is installed):");
+            body.AppendLine(ZPlus.Shared.ZplusLink.BuildJoin(config.PublicUrl, meeting.MeetingCode, meetingPassword));
         }
         else
         {

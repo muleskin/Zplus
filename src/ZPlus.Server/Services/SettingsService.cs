@@ -10,6 +10,7 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
 {
     private const string SmtpPasswordKey = "SmtpPassword";
     private const string MailgunApiKeyKey = "MailgunApiKey";
+    private const string CertPasswordKey = "CertPassword";
 
     public static readonly ServerSettingsDto Defaults = new(
         AllowSelfRegistration: true,
@@ -35,7 +36,10 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
             stored.GetValueOrDefault(nameof(ServerSettingsDto.EmailProvider), "SMTP"),
             stored.GetValueOrDefault(nameof(ServerSettingsDto.MailgunDomain), ""),
             stored.GetValueOrDefault(nameof(ServerSettingsDto.MailgunRegion), "us"),
-            MailgunApiKey: "");
+            MailgunApiKey: "",
+            stored.GetValueOrDefault(nameof(ServerSettingsDto.CertPath), ""),
+            CertPassword: "",
+            CertKeyPath: stored.GetValueOrDefault(nameof(ServerSettingsDto.CertKeyPath), ""));
     }
 
     /// <summary>Decrypts the stored SMTP password for the mailer. Never exposed via the API.</summary>
@@ -43,6 +47,9 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
 
     /// <summary>Decrypts the stored Mailgun sending key for the mailer. Never exposed via the API.</summary>
     public Task<string> GetMailgunApiKeyAsync() => GetSecretAsync(MailgunApiKeyKey);
+
+    /// <summary>Decrypts the stored HTTPS certificate password. Never exposed via the API.</summary>
+    public Task<string> GetCertPasswordAsync() => GetSecretAsync(CertPasswordKey);
 
     private async Task<string> GetSecretAsync(string key)
     {
@@ -71,6 +78,10 @@ public class SettingsService(AppDbContext db, SecretProtector protector)
             await Upsert(SmtpPasswordKey, protector.Protect(settings.SmtpPassword));
         if (!string.IsNullOrEmpty(settings.MailgunApiKey))
             await Upsert(MailgunApiKeyKey, protector.Protect(settings.MailgunApiKey));
+        await Upsert(nameof(ServerSettingsDto.CertPath), settings.CertPath.Trim());
+        await Upsert(nameof(ServerSettingsDto.CertKeyPath), settings.CertKeyPath.Trim());
+        if (!string.IsNullOrEmpty(settings.CertPassword))
+            await Upsert(CertPasswordKey, protector.Protect(settings.CertPassword));
         await db.SaveChangesAsync();
     }
 

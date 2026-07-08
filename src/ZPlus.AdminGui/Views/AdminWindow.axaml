@@ -92,6 +92,15 @@
                             <TextBlock Text="Public URL — the address users and invite links reach" Classes="muted"
                                        TextWrapping="Wrap"/>
                             <TextBox Text="{Binding PublicUrl}"/>
+                            <TextBlock Text="HTTPS certificate (for an https:// listen URL) — server path to a .pfx, or a PEM cert (fullchain.pem)"
+                                       Classes="muted" TextWrapping="Wrap"/>
+                            <TextBox Text="{Binding CertPath}"/>
+                            <TextBlock Text="Private key (PEM) — leave empty for a .pfx; else the key file (privkey.pem)"
+                                       Classes="muted" TextWrapping="Wrap"/>
+                            <TextBox Text="{Binding CertKeyPath}"/>
+                            <TextBlock Text="Certificate password / key passphrase (blank = keep the saved one)"
+                                       Classes="muted" TextWrapping="Wrap"/>
+                            <TextBox Text="{Binding CertPassword}"/>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
                                 <Button Classes="primary" Content="Save settings" Command="{Binding SaveSettingsCommand}"/>
                                 <Button Classes="ghost" Content="Reload" Command="{Binding RefreshSettingsCommand}"/>

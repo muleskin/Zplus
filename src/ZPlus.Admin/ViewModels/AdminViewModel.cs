@@ -31,6 +31,9 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     [ObservableProperty] private string _mailgunDomain = "";
     [ObservableProperty] private string _mailgunRegion = "us";
     [ObservableProperty] private string _mailgunApiKey = "";
+    [ObservableProperty] private string _certPath = "";
+    [ObservableProperty] private string _certKeyPath = "";
+    [ObservableProperty] private string _certPassword = "";
     [ObservableProperty] private string _testRecipient = "";
 
     public string[] EmailProviders => ["SMTP", "Mailgun"];
@@ -150,6 +153,9 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         MailgunDomain = settings.MailgunDomain;
         MailgunRegion = settings.MailgunRegion;
         MailgunApiKey = "";
+        CertPath = settings.CertPath;
+        CertKeyPath = settings.CertKeyPath;
+        CertPassword = "";
         if (string.IsNullOrEmpty(TestRecipient))
             TestRecipient = api.SignedInUser?.Email ?? "";
     }
@@ -158,7 +164,8 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
     private ServerSettingsDto CurrentSettings(int max, int smtpPort) => new(
         AllowSelfRegistration, RequireMeetingPasswords, max, ListenUrl.Trim(),
         PublicUrl.Trim(), SmtpHost.Trim(), smtpPort, SmtpFrom.Trim(), SmtpUser.Trim(), SmtpPassword,
-        EmailProvider, MailgunDomain.Trim(), MailgunRegion, MailgunApiKey);
+        EmailProvider, MailgunDomain.Trim(), MailgunRegion, MailgunApiKey,
+        CertPath.Trim(), CertPassword, CertKeyPath.Trim());
 
     [RelayCommand]
     private async Task SaveSettingsAsync()
@@ -190,7 +197,10 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
             MailgunDomain = saved.MailgunDomain;
             MailgunRegion = saved.MailgunRegion;
             MailgunApiKey = "";
-            Status = "Settings saved. Listen URL changes take effect after a server restart.";
+            CertPath = saved.CertPath;
+            CertKeyPath = saved.CertKeyPath;
+            CertPassword = "";
+            Status = "Settings saved. Listen URL and certificate changes take effect after a server restart.";
         });
     }
 

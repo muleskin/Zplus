@@ -130,6 +130,31 @@ public class AdminController(
             (!Uri.TryCreate(request.PublicUrl.Trim(), UriKind.Absolute, out var publicUri) ||
              (publicUri.Scheme != "http" && publicUri.Scheme != "https")))
             return BadRequest("Public URL must be empty or an absolute http:// or https:// address.");
+
+        // For an HTTPS listen URL, verify the certificate loads before saving so the
+        // server won't fail to start after a restart. The path is on the server machine.
+        if (uri.Scheme == "https")
+        {
+            if (string.IsNullOrWhiteSpace(request.CertPath))
+                return BadRequest("An https:// listen URL requires a certificate path (a .pfx file on the server).");
+            if (!System.IO.File.Exists(request.CertPath.Trim()))
+                return BadRequest($"Certificate file not found on the server: {request.CertPath.Trim()}");
+            var keyPath = request.CertKeyPath.Trim();
+            if (!string.IsNullOrWhiteSpace(keyPath) && !System.IO.File.Exists(keyPath))
+                return BadRequest($"Private-key file not found on the server: {keyPath}");
+            var certPw = string.IsNullOrEmpty(request.CertPassword)
+                ? await settings.GetCertPasswordAsync()
+                : request.CertPassword;
+            try
+            {
+                using var _ = ZPlus.Server.CertificateLoader.Load(request.CertPath.Trim(), keyPath, certPw);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Could not load the certificate (check the files and password): {ex.Message}");
+            }
+        }
+
         await settings.SaveAsync(request);
         return Ok(await settings.GetAsync());
     }

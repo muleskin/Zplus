@@ -135,7 +135,16 @@
                             <TextBox Text="{Binding ListenUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
                             <TextBlock Text="Public URL — the address users and invite links reach, e.g. http://192.168.1.10:5199"
                                        Foreground="{StaticResource MutedFg}" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding PublicUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16"/>
+                            <TextBox Text="{Binding PublicUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
+                            <TextBlock Text="HTTPS certificate (for an https:// listen URL) — server path to a .pfx, or a PEM cert (fullchain.pem)"
+                                       Foreground="{StaticResource MutedFg}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding CertPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Private key (PEM) — leave empty for a .pfx; else the key file (privkey.pem)"
+                                       Foreground="{StaticResource MutedFg}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding CertKeyPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Certificate password / key passphrase (blank = keep the saved one)"
+                                       Foreground="{StaticResource MutedFg}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding CertPassword, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16"/>
                             <StackPanel Orientation="Horizontal">
                                 <Button Style="{StaticResource PrimaryButton}" Content="Save settings"
                                         Command="{Binding SaveSettingsCommand}"/>

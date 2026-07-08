@@ -125,6 +125,31 @@ The GUI apps share their view-models with the Windows WPF apps and also run on W
   `access_token` query parameter. Admin endpoints require the Admin/SuperAdmin role;
   disabled accounts are re-checked at meeting join, not just at login.
 
+## HTTPS / TLS
+
+The server can terminate TLS natively — no reverse proxy required. In the admin app's
+**Server settings**:
+
+1. Set an **HTTPS certificate** (a server-side file path):
+   - **PFX/PKCS#12** — set the certificate path to your `.pfx` and the **certificate
+     password**; leave the private-key path empty.
+   - **PEM** (Let's Encrypt style) — set the certificate path to `fullchain.pem`, the
+     **private key** path to `privkey.pem`, and the password only if the key is encrypted.
+2. Set the **listen URL** to `https://0.0.0.0:5199` and the **Public URL** to
+   `https://<host>:5199`. Save, then **restart the server** for the listen URL to apply.
+
+Settings are validated on save — a missing file or wrong password is rejected before it
+can break a restart. Clients, the admin app and SignalR all accept `https://`/`wss://`.
+
+**Automatic renewal reload.** The certificate is re-read from disk automatically when its
+files change (e.g. after `certbot renew`), so renewal needs **no restart** — the new cert
+is picked up within ~5 minutes. Override the poll interval with `ZPLUS_CERT_RELOAD_SECONDS`.
+
+Notes: use a **CA-issued** certificate in production (self-signed certs are correctly
+rejected by the client). Ensure the account running the server can **read** the cert files
+(Let's Encrypt's `/etc/letsencrypt/live/**` is root-only by default — grant access or copy
+the pair somewhere readable). Enabling HTTPS also encrypts the admin/API traffic itself.
+
 ## Architecture notes
 
 - **Signaling**: SignalR hub relays SDP offers/answers and ICE candidates between peers;
@@ -147,7 +172,7 @@ The GUI apps share their view-models with the Windows WPF apps and also run on W
 
 ## Production hardening TODOs
 
-- Serve over HTTPS/WSS with real certificates.
+- Native HTTPS/TLS is supported (see above) — use a CA-issued certificate in production.
 - Add TURN servers for NAT traversal beyond STUN (`stun.l.google.com` is used for dev).
 - Move from mesh to an SFU for meetings beyond ~4-6 participants.
 - Switch `EnsureCreated` to EF Core migrations before real data matters.

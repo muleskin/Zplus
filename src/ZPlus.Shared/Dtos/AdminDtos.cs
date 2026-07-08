@@ -46,7 +46,10 @@ public record ServerSettingsDto(
     string EmailProvider = "SMTP",
     string MailgunDomain = "",
     string MailgunRegion = "us",
-    string MailgunApiKey = "");
+    string MailgunApiKey = "",
+    string CertPath = "",
+    string CertPassword = "",
+    string CertKeyPath = "");
 
 /// <summary>Sends a test email using the given settings (blank password uses the stored one).</summary>
 public record SmtpTestRequest(ServerSettingsDto Settings, string Recipient);

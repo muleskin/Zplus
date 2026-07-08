@@ -22,6 +22,9 @@ var passwords = new PasswordService(protector);
 // itself needs before it can start — the JWT signing key and the listen URL.
 byte[] jwtSigningKey;
 string listenUrl;
+string certPath = "";
+string certKeyPath = "";
+string certPassword = "";
 bool seededAdmin = false;
 List<string> upgradedObjects = [];
 string seedEmail = (Environment.GetEnvironmentVariable("ZPLUS_ADMIN_EMAIL") ?? "admin@zplus.local")
@@ -50,6 +53,11 @@ string seedEmail = (Environment.GetEnvironmentVariable("ZPLUS_ADMIN_EMAIL") ?? "
     listenUrl = db.ServerSettings.Find(nameof(ServerSettingsDto.ListenUrl))?.Value
         ?? SettingsService.Defaults.ListenUrl;
 
+    certPath = db.ServerSettings.Find(nameof(ServerSettingsDto.CertPath))?.Value ?? "";
+    certKeyPath = db.ServerSettings.Find(nameof(ServerSettingsDto.CertKeyPath))?.Value ?? "";
+    var certPwRow = db.ServerSettings.Find("CertPassword");
+    certPassword = certPwRow is null ? "" : protector.Unprotect(certPwRow.Value) ?? "";
+
     // Seed the initial super admin if no admin account exists yet.
     if (!db.Users.Any(u => u.Role == Roles.Admin || u.Role == Roles.SuperAdmin))
     {
@@ -77,6 +85,35 @@ string seedEmail = (Environment.GetEnvironmentVariable("ZPLUS_ADMIN_EMAIL") ?? "
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls(listenUrl);
+
+// Native HTTPS: when the listen URL is https, bind Kestrel with the configured certificate.
+// The provider reloads the certificate automatically when its files change on disk (renewal).
+ZPlus.Server.HttpsCertificateProvider? certProvider = null;
+if (listenUrl.StartsWith("https", StringComparison.OrdinalIgnoreCase))
+{
+    if (string.IsNullOrWhiteSpace(certPath))
+        throw new InvalidOperationException(
+            "The listen URL is https:// but no certificate is configured. Set an HTTPS certificate path in server settings, or use an http:// listen URL.");
+    if (!File.Exists(certPath))
+        throw new InvalidOperationException($"HTTPS certificate file not found on the server: {certPath}");
+    if (!string.IsNullOrWhiteSpace(certKeyPath) && !File.Exists(certKeyPath))
+        throw new InvalidOperationException($"HTTPS private-key file not found on the server: {certKeyPath}");
+
+    // How often to check for a renewed certificate on disk (default 5 minutes, min 5s).
+    var pollSeconds = int.TryParse(Environment.GetEnvironmentVariable("ZPLUS_CERT_RELOAD_SECONDS"), out var s)
+        ? Math.Max(5, s) : 300;
+    try
+    {
+        certProvider = new ZPlus.Server.HttpsCertificateProvider(
+            certPath, certKeyPath, certPassword, TimeSpan.FromSeconds(pollSeconds));
+    }
+    catch (Exception ex)
+    {
+        throw new InvalidOperationException($"Could not load the HTTPS certificate '{certPath}': {ex.Message}", ex);
+    }
+    builder.WebHost.ConfigureKestrel(options =>
+        options.ConfigureHttpsDefaults(https => https.ServerCertificateSelector = (_, _) => certProvider!.Current));
+}
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -129,6 +166,8 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+certProvider?.AttachLogger(message => app.Logger.LogInformation("{Message}", message));
 
 app.Logger.LogInformation("Database: {DbPath}", dbPath);
 app.Logger.LogInformation("Key file: {KeyPath}", keyPath);

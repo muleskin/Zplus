@@ -23,12 +23,16 @@ var passwords = new PasswordService(protector);
 byte[] jwtSigningKey;
 string listenUrl;
 bool seededAdmin = false;
+List<string> upgradedObjects = [];
 string seedEmail = (Environment.GetEnvironmentVariable("ZPLUS_ADMIN_EMAIL") ?? "admin@zplus.local")
     .Trim().ToLowerInvariant();
 {
     var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
     using var db = new AppDbContext(options);
     db.Database.EnsureCreated();
+    // Add any tables/indexes the model gained since this database was created
+    // (e.g. MeetingInvitations) so existing databases don't need to be recreated.
+    upgradedObjects = SchemaUpgrader.EnsureUpToDate(db);
 
     const string jwtKeyName = "JwtSigningKey";
     var jwtRow = db.ServerSettings.Find(jwtKeyName);
@@ -132,6 +136,11 @@ if (seededAdmin)
 {
     app.Logger.LogWarning(
         "Seeded super admin account {Email}. Change its password immediately via the admin app.", seedEmail);
+}
+if (upgradedObjects.Count > 0)
+{
+    app.Logger.LogWarning("Schema upgrade added missing database objects: {Objects}",
+        string.Join(", ", upgradedObjects));
 }
 
 app.UseAuthentication();

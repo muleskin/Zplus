@@ -13,7 +13,10 @@ public class AuthController(
     AppDbContext db,
     TokenService tokenService,
     SettingsService settings,
-    PasswordService passwords) : ControllerBase
+    PasswordService passwords,
+    TotpService totp,
+    SecretProtector protector,
+    AuditService audit) : ControllerBase
 {
 
     [HttpPost("register")]
@@ -54,6 +57,38 @@ public class AuthController(
 
         if (user.IsDisabled)
             return Unauthorized("This account has been disabled. Contact your administrator.");
+
+        // Multi-factor authentication (TOTP).
+        if (user.MfaRequired && !user.MfaEnabled)
+        {
+            // First leg: issue a fresh secret so the user can add Z+ to their authenticator.
+            if (string.IsNullOrWhiteSpace(request.MfaCode) || string.IsNullOrWhiteSpace(request.MfaEnrollSecret))
+            {
+                var secret = totp.GenerateSecret();
+                var uri = totp.BuildOtpauthUri(secret, "Z+", user.Email);
+                return Ok(new AuthResponse(null, null, MfaRequired: true,
+                    Enrollment: new MfaEnrollmentDto(secret, uri, "Z+", user.Email)));
+            }
+            // Second leg: confirm the first code, then persist the (encrypted) secret.
+            if (!totp.Verify(request.MfaEnrollSecret, request.MfaCode))
+                return Unauthorized("That code didn't match. Enter a fresh 6-digit code from your authenticator.");
+            user.TotpSecret = protector.Protect(request.MfaEnrollSecret);
+            user.MfaEnabled = true;
+            user.MfaRequired = false;
+            await db.SaveChangesAsync();
+            await audit.LogAsync(user.Id, user.Email, "auth.mfa-enrolled");
+        }
+        else if (user.MfaEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(request.MfaCode))
+                return Ok(new AuthResponse(null, null, MfaRequired: true));
+            var secret = user.TotpSecret is null ? null : protector.Unprotect(user.TotpSecret);
+            if (secret is null || !totp.Verify(secret, request.MfaCode))
+                return Unauthorized("Invalid authentication code.");
+        }
+
+        if (user.Role is Roles.Admin or Roles.SuperAdmin)
+            await audit.LogAsync(user.Id, user.Email, "auth.login");
 
         return Ok(new AuthResponse(tokenService.CreateToken(user), ToDto(user)));
     }

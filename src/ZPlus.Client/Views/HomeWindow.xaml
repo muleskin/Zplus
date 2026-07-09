@@ -26,6 +26,8 @@
                 <Border Background="{StaticResource PanelBg}" CornerRadius="10" Padding="20">
                     <StackPanel>
                         <TextBlock Text="Start" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <CheckBox IsChecked="{Binding WaitingRoomEnabled}" Foreground="{StaticResource TextFg}"
+                                  Content="Enable waiting room (admit people yourself)" Margin="0,0,0,10"/>
                         <Button Style="{StaticResource PrimaryButton}" Content="Start an instant meeting"
                                 Command="{Binding StartInstantMeetingCommand}"
                                 IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>

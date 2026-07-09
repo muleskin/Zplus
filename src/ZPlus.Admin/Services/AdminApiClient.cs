@@ -16,14 +16,20 @@ public class AdminApiClient
     public string? Token { get; private set; }
     public UserDto? SignedInUser { get; private set; }
 
-    public async Task SignInAsync(string email, string password)
+    /// <summary>
+    /// Signs in. Returns the raw response so the caller can handle an MFA challenge
+    /// (Token == null &amp;&amp; MfaRequired). On a fully-authenticated admin, stores the token.
+    /// </summary>
+    public async Task<AuthResponse> SignInAsync(string email, string password, string? mfaCode = null, string? enrollSecret = null)
     {
         var auth = await PostAsync<LoginRequest, AuthResponse>(
-            "api/auth/login", new LoginRequest(email, password), authorized: false);
-        if (auth.User.Role != Roles.Admin && auth.User.Role != Roles.SuperAdmin)
+            "api/auth/login", new LoginRequest(email, password, mfaCode, enrollSecret), authorized: false);
+        if (auth.Token is null) return auth; // second factor still needed
+        if (auth.User!.Role != Roles.Admin && auth.User.Role != Roles.SuperAdmin)
             throw new ApiException("This account does not have administrator rights.");
         Token = auth.Token;
         SignedInUser = auth.User;
+        return auth;
     }
 
     public Task<List<AdminUserDto>> GetUsersAsync() => GetAsync<List<AdminUserDto>>("api/admin/users");
@@ -53,6 +59,19 @@ public class AdminApiClient
 
     public Task ForceEndMeetingAsync(Guid id) =>
         SendAsync<object, object?>(HttpMethod.Post, $"api/admin/meetings/{id}/end", new { }, expectBody: false);
+
+    public Task<DashboardStatsDto> GetStatsAsync() => GetAsync<DashboardStatsDto>("api/admin/stats");
+
+    public Task<List<AuditLogDto>> GetAuditAsync() => GetAsync<List<AuditLogDto>>("api/admin/audit");
+
+    public Task<SearchResultsDto> SearchAsync(string query) =>
+        GetAsync<SearchResultsDto>($"api/admin/search?q={Uri.EscapeDataString(query)}");
+
+    public Task<AdminUserDto> RequireMfaAsync(Guid id) =>
+        SendAsync<object, AdminUserDto>(HttpMethod.Post, $"api/admin/users/{id}/mfa/require", new { });
+
+    public Task<AdminUserDto> ResetMfaAsync(Guid id) =>
+        SendAsync<object, AdminUserDto>(HttpMethod.Post, $"api/admin/users/{id}/mfa/reset", new { });
 
     // ---- plumbing ----------------------------------------------------------
 

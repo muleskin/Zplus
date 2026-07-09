@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -32,6 +33,33 @@ public class ApiClient
         using var response = await Http.SendAsync(request);
         await ThrowIfFailedAsync(response);
         return (await response.Content.ReadFromJsonAsync<List<MeetingDto>>())!;
+    }
+
+    /// <summary>Uploads a file for a meeting and returns its stored id + metadata.</summary>
+    public async Task<FileUploadResponse> UploadFileAsync(Guid meetingId, string filePath)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(meetingId.ToString()), "meetingId");
+        var bytes = await File.ReadAllBytesAsync(filePath);
+        var fileContent = new ByteArrayContent(bytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "file", Path.GetFileName(filePath));
+
+        using var request = NewRequest(HttpMethod.Post, "api/files", authorized: true);
+        request.Content = content;
+        using var response = await Http.SendAsync(request);
+        await ThrowIfFailedAsync(response);
+        return (await response.Content.ReadFromJsonAsync<FileUploadResponse>())!;
+    }
+
+    /// <summary>Downloads a shared file (server-relative path) to the given local path.</summary>
+    public async Task DownloadFileAsync(string downloadPath, string destinationPath)
+    {
+        using var request = NewRequest(HttpMethod.Get, downloadPath.TrimStart('/'), authorized: true);
+        using var response = await Http.SendAsync(request);
+        await ThrowIfFailedAsync(response);
+        await using var fs = File.Create(destinationPath);
+        await response.Content.CopyToAsync(fs);
     }
 
     private async Task<TResponse> PostAsync<TRequest, TResponse>(

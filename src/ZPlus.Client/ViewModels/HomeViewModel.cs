@@ -18,6 +18,7 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty] private DateTime _scheduleDate = DateTime.Today.AddDays(1);
     [ObservableProperty] private string _scheduleTime = "09:00";
     [ObservableProperty] private string _scheduleDuration = "60";
+    [ObservableProperty] private bool _waitingRoomEnabled;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
     [ObservableProperty] private string? _info;
@@ -35,7 +36,8 @@ public partial class HomeViewModel : ObservableObject
         await RunAsync(async () =>
         {
             var topic = $"{AppSession.Current.User?.DisplayName}'s Meeting";
-            var created = await _api.CreateMeetingAsync(new CreateMeetingRequest(topic, null, null, null));
+            var created = await _api.CreateMeetingAsync(
+                new CreateMeetingRequest(topic, null, null, null, null, WaitingRoomEnabled));
             OpenMeetingRequested?.Invoke(created.Meeting.MeetingCode, null);
         });
     }
@@ -97,7 +99,7 @@ public partial class HomeViewModel : ObservableObject
             var password = string.IsNullOrEmpty(SchedulePassword) ? null : SchedulePassword;
             var created = await _api.CreateMeetingAsync(
                 new CreateMeetingRequest(ScheduleTopic.Trim(), password, startUtc, duration,
-                    invites.Count > 0 ? invites : null));
+                    invites.Count > 0 ? invites : null, WaitingRoomEnabled));
 
             Info = $"Scheduled \"{created.Meeting.Topic}\" — meeting ID {created.Meeting.MeetingCode}";
             if (created.InvitesSent > 0)

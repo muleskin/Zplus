@@ -32,6 +32,22 @@ public record ChatLine(string Sender, string Text, bool IsPrivate, string Time);
 
 public record ChatRecipientOption(string Label, Guid? UserId);
 
+public partial class ReactionItem : ObservableObject
+{
+    public string Text { get; init; } = "";
+}
+
+public partial class PollOptionVm : ObservableObject
+{
+    public int Index { get; init; }
+    public string Text { get; init; } = "";
+    [ObservableProperty] private int _votes;
+    [ObservableProperty] private double _fraction;
+    [ObservableProperty] private bool _isMyVote;
+    public string VotesLabel => Votes == 1 ? "1 vote" : $"{Votes} votes";
+    partial void OnVotesChanged(int value) => OnPropertyChanged(nameof(VotesLabel));
+}
+
 /// <summary>
 /// Meeting session for the cross-platform GUI client: live roster, end-to-end encrypted
 /// chat, and host controls. Audio/video capture is not available off-Windows yet.
@@ -41,9 +57,12 @@ public partial class MeetingViewModel : ObservableObject
     private readonly string _meetingCode;
     private readonly string? _password;
     private readonly MeetingHubClient _hub = new();
+    private readonly ApiClient _api = new();
     private readonly MeetingE2ee _e2ee = new();
     private readonly List<ChatMessageDto> _pendingEncrypted = [];
     private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
+    private Guid _meetingId;
+    private Guid _selfUserId;
 
     [ObservableProperty] private string _title = "Connecting…";
     [ObservableProperty] private string _meetingCodeDisplay = "";
@@ -53,9 +72,40 @@ public partial class MeetingViewModel : ObservableObject
     [ObservableProperty] private ChatRecipientOption? _selectedRecipient;
     [ObservableProperty] private string? _statusMessage;
 
+    // Waiting room
+    [ObservableProperty] private bool _isWaiting;
+    [ObservableProperty] private bool _hasWaiting;
+    // Polls
+    [ObservableProperty] private bool _hasActivePoll;
+    [ObservableProperty] private string _pollQuestion = "";
+    [ObservableProperty] private bool _pollIsClosed;
+    [ObservableProperty] private int _pollTotalVotes;
+    [ObservableProperty] private Guid _activePollId;
+    [ObservableProperty] private string _newPollQuestion = "";
+    [ObservableProperty] private string _newPollOptions = "";
+    // Breakouts
+    [ObservableProperty] private bool _hasBreakouts;
+    [ObservableProperty] private bool _breakoutsOpen;
+    [ObservableProperty] private string _myBreakoutRoom = "";
+    [ObservableProperty] private string _breakoutRoomCount = "2";
+
     public ObservableCollection<ParticipantItem> Participants { get; } = [];
     public ObservableCollection<ChatLine> ChatMessages { get; } = [];
     public ObservableCollection<ChatRecipientOption> ChatRecipients { get; } = [];
+    public ObservableCollection<ReactionItem> Reactions { get; } = [];
+    public ObservableCollection<WaitingParticipantDto> Waiting { get; } = [];
+    public ObservableCollection<MeetingFileDto> SharedFiles { get; } = [];
+    public ObservableCollection<PollOptionVm> PollOptions { get; } = [];
+    public ObservableCollection<BreakoutRoomDto> BreakoutRooms { get; } = [];
+
+    public string[] ReactionEmojis => ["👍", "👏", "❤️", "😂", "🎉", "✋"];
+
+    public Func<Task<string?>>? PickFileToUpload { get; set; }
+    public Func<string, Task<string?>>? PickSaveLocation { get; set; }
+
+    public event Action<WhiteboardStrokeDto>? WhiteboardStrokeReceived;
+    public event Action? WhiteboardCleared;
+    public List<WhiteboardStrokeDto> InitialWhiteboard { get; } = [];
 
     private ParticipantItem? _self;
 
@@ -77,6 +127,23 @@ public partial class MeetingViewModel : ObservableObject
         _hub.RemovedFromMeeting += () => OnUi(() => MeetingExited?.Invoke("You were removed from the meeting by the host."));
         _hub.MeetingEnded += () => OnUi(() => MeetingExited?.Invoke("The host ended the meeting."));
         _hub.SignalReceived += s => OnUi(() => HandleSignal(s));
+
+        // Feature events
+        _hub.ReactionReceived += r => OnUi(() => ShowReaction(r));
+        _hub.ParticipantWaiting += w => OnUi(() => { if (Waiting.All(x => x.ConnectionId != w.ConnectionId)) Waiting.Add(w); HasWaiting = Waiting.Count > 0; });
+        _hub.WaitingCleared += id => OnUi(() => { var m = Waiting.FirstOrDefault(x => x.ConnectionId == id); if (m is not null) Waiting.Remove(m); HasWaiting = Waiting.Count > 0; });
+        _hub.AdmittedToMeeting += s => OnUi(() => { IsWaiting = false; _ = PopulateFromSnapshotAsync(s); });
+        _hub.WaitingDenied += reason => OnUi(() => MeetingExited?.Invoke(reason));
+        _hub.PollStarted += p => OnUi(() => ApplyPollStarted(p));
+        _hub.PollUpdated += r => OnUi(() => ApplyPollResults(r));
+        _hub.PollClosed += _ => OnUi(() => PollIsClosed = true);
+        _hub.FileShared += f => OnUi(() => { if (SharedFiles.All(x => x.FileId != f.FileId)) SharedFiles.Add(f); StatusMessage = $"{f.SenderDisplayName} shared {f.FileName}."; });
+        _hub.WhiteboardStrokeReceived += s => OnUi(() => WhiteboardStrokeReceived?.Invoke(s));
+        _hub.WhiteboardCleared += () => OnUi(() => WhiteboardCleared?.Invoke());
+        _hub.BreakoutsUpdated += s => OnUi(() => ApplyBreakouts(s));
+        _hub.BreakoutAssigned += (room, name) => OnUi(() => { MyBreakoutRoom = room >= 0 ? name : ""; if (room >= 0) StatusMessage = $"You are in {name}."; });
+        _hub.BreakoutsOpened += () => OnUi(() => { BreakoutsOpen = true; StatusMessage = "Breakout rooms are open."; });
+        _hub.BreakoutsClosed += () => OnUi(() => { BreakoutsOpen = false; MyBreakoutRoom = ""; StatusMessage = "Breakout rooms closed."; });
     }
 
     public async Task InitializeAsync()
@@ -86,7 +153,35 @@ public partial class MeetingViewModel : ObservableObject
 
         Title = snapshot.Meeting.Topic;
         MeetingCodeDisplay = $"Meeting ID: {snapshot.Meeting.MeetingCode}";
+
+        if (snapshot.InWaitingRoom)
+        {
+            IsWaiting = true;
+            StatusMessage = "Waiting for the host to admit you…";
+            return;
+        }
+
+        await PopulateFromSnapshotAsync(snapshot);
+    }
+
+    private async Task PopulateFromSnapshotAsync(MeetingJoinedSnapshot snapshot)
+    {
+        Title = snapshot.Meeting.Topic;
+        MeetingCodeDisplay = $"Meeting ID: {snapshot.Meeting.MeetingCode}";
         IsSelfHost = snapshot.Self.IsHost;
+        _selfUserId = snapshot.Self.UserId;
+        _meetingId = snapshot.Meeting.Id;
+
+        foreach (var f in snapshot.SharedFiles ?? []) SharedFiles.Add(f);
+        if (snapshot.ActivePoll is not null)
+        {
+            ApplyPollStarted(snapshot.ActivePoll);
+            if (snapshot.ActivePollResults is not null) ApplyPollResults(snapshot.ActivePollResults);
+        }
+        foreach (var s in snapshot.Whiteboard ?? []) InitialWhiteboard.Add(s);
+        foreach (var w in snapshot.Waiting ?? []) Waiting.Add(w);
+        HasWaiting = Waiting.Count > 0;
+        if (snapshot.Breakouts is not null) ApplyBreakouts(snapshot.Breakouts);
 
         _self = ParticipantItem.From(snapshot.Self, isSelf: true);
         Participants.Add(_self);
@@ -237,6 +332,173 @@ public partial class MeetingViewModel : ObservableObject
     {
         if (item is null || item.IsSelf) return;
         try { await _hub.TransferHostAsync(item.ConnectionId); } catch { StatusMessage = "Host transfer failed."; }
+    }
+
+    // ---- feature handlers ---------------------------------------------------------
+
+    private async void ShowReaction(ReactionDto r)
+    {
+        var item = new ReactionItem { Text = r.Emoji };
+        Reactions.Add(item);
+        try { await Task.Delay(4000); } catch { /* ignore */ }
+        OnUi(() => Reactions.Remove(item));
+    }
+
+    private void ApplyPollStarted(PollDto p)
+    {
+        HasActivePoll = true;
+        PollIsClosed = p.IsClosed;
+        ActivePollId = p.PollId;
+        PollQuestion = p.Question;
+        PollTotalVotes = 0;
+        PollOptions.Clear();
+        for (int i = 0; i < p.Options.Count; i++)
+            PollOptions.Add(new PollOptionVm { Index = i, Text = p.Options[i] });
+    }
+
+    private void ApplyPollResults(PollResultsDto r)
+    {
+        if (r.PollId != ActivePollId) return;
+        PollTotalVotes = r.TotalVotes;
+        PollIsClosed = r.IsClosed;
+        for (int i = 0; i < PollOptions.Count && i < r.Votes.Count; i++)
+        {
+            PollOptions[i].Votes = r.Votes[i];
+            PollOptions[i].Fraction = r.TotalVotes > 0 ? (double)r.Votes[i] / r.TotalVotes : 0;
+        }
+    }
+
+    private void ApplyBreakouts(BreakoutStateDto s)
+    {
+        HasBreakouts = s.Rooms.Count > 0;
+        BreakoutsOpen = s.IsOpen;
+        BreakoutRooms.Clear();
+        foreach (var room in s.Rooms) BreakoutRooms.Add(room);
+        var mine = s.Rooms.FirstOrDefault(r => r.Members.Any(m => m.UserId == _selfUserId));
+        MyBreakoutRoom = mine is null ? "" : s.IsOpen ? mine.Name : $"{mine.Name} (opens soon)";
+    }
+
+    // ---- feature commands ---------------------------------------------------------
+
+    [RelayCommand]
+    private async Task SendReactionAsync(string? emoji)
+    {
+        if (string.IsNullOrEmpty(emoji)) return;
+        try { await _hub.SendReactionAsync(emoji); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task AdmitAsync(WaitingParticipantDto? w)
+    {
+        if (w is null) return;
+        try { await _hub.AdmitParticipantAsync(w.ConnectionId); } catch { StatusMessage = "Admit failed."; }
+    }
+
+    [RelayCommand]
+    private async Task DenyAsync(WaitingParticipantDto? w)
+    {
+        if (w is null) return;
+        try { await _hub.DenyParticipantAsync(w.ConnectionId); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CreatePollAsync()
+    {
+        var q = NewPollQuestion.Trim();
+        var opts = NewPollOptions
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (q.Length == 0 || opts.Count < 2)
+        {
+            StatusMessage = "Enter a question and at least two options (one per line).";
+            return;
+        }
+        try { await _hub.CreatePollAsync(q, opts); NewPollQuestion = ""; NewPollOptions = ""; }
+        catch (Exception ex) { StatusMessage = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task VoteAsync(PollOptionVm? option)
+    {
+        if (option is null || PollIsClosed) return;
+        foreach (var o in PollOptions) o.IsMyVote = o.Index == option.Index;
+        try { await _hub.VotePollAsync(ActivePollId, option.Index); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task ClosePollAsync()
+    {
+        if (!HasActivePoll) return;
+        try { await _hub.ClosePollAsync(ActivePollId); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task ShareFileAsync()
+    {
+        if (PickFileToUpload is null) return;
+        var path = await PickFileToUpload();
+        if (string.IsNullOrEmpty(path)) return;
+        try
+        {
+            StatusMessage = "Uploading…";
+            var uploaded = await _api.UploadFileAsync(_meetingId, path);
+            await _hub.ShareFileAsync(uploaded.FileId);
+            StatusMessage = $"Shared {uploaded.FileName}.";
+        }
+        catch (Exception ex) { StatusMessage = $"Upload failed: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private async Task DownloadFileAsync(MeetingFileDto? file)
+    {
+        if (file is null || PickSaveLocation is null) return;
+        var dest = await PickSaveLocation(file.FileName);
+        if (string.IsNullOrEmpty(dest)) return;
+        try { await _api.DownloadFileAsync(file.DownloadPath, dest); StatusMessage = $"Saved {file.FileName}."; }
+        catch (Exception ex) { StatusMessage = $"Download failed: {ex.Message}"; }
+    }
+
+    public Task SendStrokeAsync(WhiteboardStrokeDto stroke) => _hub.WhiteboardDrawAsync(stroke);
+
+    [RelayCommand]
+    private async Task ClearWhiteboardAsync()
+    {
+        try { await _hub.WhiteboardClearAsync(); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CreateBreakoutsAsync()
+    {
+        if (!int.TryParse(BreakoutRoomCount, out var n) || n < 1)
+        {
+            StatusMessage = "Enter the number of rooms.";
+            return;
+        }
+        try { await _hub.CreateBreakoutRoomsAsync(n); } catch (Exception ex) { StatusMessage = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task AutoAssignBreakoutsAsync()
+    {
+        if (!HasBreakouts || BreakoutRooms.Count == 0) return;
+        int i = 0;
+        foreach (var p in Participants.Where(x => !x.IsSelf))
+        {
+            try { await _hub.AssignBreakoutAsync(p.ConnectionId, i % BreakoutRooms.Count); } catch { /* skip */ }
+            i++;
+        }
+        StatusMessage = "Assigned participants to rooms.";
+    }
+
+    [RelayCommand]
+    private async Task OpenBreakoutsAsync()
+    {
+        try { await _hub.OpenBreakoutsAsync(); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CloseBreakoutsAsync()
+    {
+        try { await _hub.CloseBreakoutsAsync(); } catch { /* best effort */ }
     }
 
     public async Task ShutdownAsync()

@@ -26,6 +26,32 @@
             <TextBlock Text="Password" Foreground="{StaticResource MutedFg}" Margin="0,12,0,4"/>
             <PasswordBox x:Name="PasswordInput" PasswordChanged="OnPasswordChanged"/>
 
+            <!-- Two-factor authentication (shown only when required) -->
+            <StackPanel Visibility="{Binding MfaRequired, Converter={StaticResource BoolToVis}}">
+                <Border Background="{StaticResource TileBg}" CornerRadius="6" Padding="10" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding MfaInfo}" TextWrapping="Wrap" Foreground="{StaticResource MutedFg}" FontSize="12"/>
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MfaSecret}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="Setup key (type into your authenticator):" Foreground="{StaticResource MutedFg}"
+                                       FontSize="11" Margin="0,8,0,2"/>
+                            <TextBox Text="{Binding MfaSecret, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Authentication code" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
+                <TextBox Text="{Binding MfaCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="6"/>
+            </StackPanel>
+
             <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap" Margin="0,12,0,0"/>
 
             <Button Style="{StaticResource PrimaryButton}" Margin="0,16,0,0"

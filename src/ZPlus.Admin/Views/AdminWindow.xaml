@@ -14,6 +14,56 @@
         <TextBlock Grid.Row="0" Text="{Binding HeaderText}" Foreground="{StaticResource MutedFg}" Margin="4,0,0,10"/>
 
         <TabControl Grid.Row="1" Background="{StaticResource PanelBg}" BorderThickness="0" Padding="10">
+            <!-- ===================== DASHBOARD ===================== -->
+            <TabItem Header="Dashboard">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Button Grid.Row="0" Style="{StaticResource GhostButton}" Content="Refresh" HorizontalAlignment="Left"
+                            Margin="0,0,0,12" Command="{Binding RefreshStatsCommand}"/>
+                    <WrapPanel Grid.Row="1" DataContext="{Binding Stats}">
+                        <WrapPanel.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource TileBg}"/>
+                                <Setter Property="CornerRadius" Value="10"/>
+                                <Setter Property="Padding" Value="18,14"/>
+                                <Setter Property="Margin" Value="0,0,12,12"/>
+                                <Setter Property="Width" Value="180"/>
+                            </Style>
+                        </WrapPanel.Resources>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding TotalUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Total users" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding Admins}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Administrators" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding DisabledUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Disabled accounts" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding MfaEnabledUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="MFA enrolled" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding ActiveMeetings}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource AccentBg}"/>
+                            <TextBlock Text="Active meetings" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding ActiveParticipants}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource AccentBg}"/>
+                            <TextBlock Text="In meetings now" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding MeetingsToday}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Meetings today" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding MeetingsTotal}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Meetings all-time" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                        <Border><StackPanel>
+                            <TextBlock Text="{Binding MessagesTotal}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Chat messages" Foreground="{StaticResource MutedFg}"/></StackPanel></Border>
+                    </WrapPanel>
+                </Grid>
+            </TabItem>
+
             <!-- ===================== USERS ===================== -->
             <TabItem Header="Users">
                 <Grid Margin="8">
@@ -89,14 +139,20 @@
                                             <ComboBox Grid.Column="4" VerticalAlignment="Center"
                                                       ItemsSource="{Binding DataContext.AvailableRoles, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       SelectedItem="{Binding Role}"/>
-                                            <TextBlock Grid.Column="6" Text="{Binding StatusLabel}" VerticalAlignment="Center"
-                                                       HorizontalAlignment="Center"/>
+                                            <StackPanel Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusLabel}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding MfaLabel}" Foreground="{StaticResource MutedFg}"
+                                                           FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
                                             <StackPanel Grid.Column="8" Orientation="Horizontal">
                                                 <Button Style="{StaticResource PrimaryButton}" Content="Save" Padding="10,5" Margin="2,0"
                                                         Command="{Binding DataContext.SaveUserCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource GhostButton}" Content="{Binding DisableButtonLabel}" Padding="10,5" Margin="2,0"
                                                         Command="{Binding DataContext.ToggleDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource GhostButton}" Content="{Binding MfaButtonLabel}" Padding="10,5" Margin="2,0"
+                                                        Command="{Binding DataContext.ToggleMfaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource GhostButton}" Content="Reset password" Padding="10,5" Margin="2,0"
                                                         Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -239,6 +295,100 @@
                                             <Button Grid.Column="1" Style="{StaticResource DangerButton}" Content="End meeting"
                                                     Command="{Binding DataContext.ForceEndMeetingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ===================== SEARCH ===================== -->
+            <TabItem Header="Search">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Search"
+                                Margin="8,0,0,0" Command="{Binding SearchCommand}"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding SearchSummary}" Foreground="{StaticResource MutedFg}" Margin="2,8"/>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Users" FontWeight="SemiBold" Margin="2,4"/>
+                            <ItemsControl ItemsSource="{Binding SearchUsers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource TileBg}" CornerRadius="6" Padding="10" Margin="0,0,0,4">
+                                            <TextBlock>
+                                                <Run Text="{Binding Email, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                <Run Text=" — "/>
+                                                <Run Text="{Binding DisplayName, Mode=OneWay}"/>
+                                                <Run Text=" ("/><Run Text="{Binding Role, Mode=OneWay}"/><Run Text=") · "/>
+                                                <Run Text="{Binding StatusLabel, Mode=OneWay}"/><Run Text=" · "/>
+                                                <Run Text="{Binding MfaLabel, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Meetings" FontWeight="SemiBold" Margin="2,12,2,4"/>
+                            <ItemsControl ItemsSource="{Binding SearchMeetings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource TileBg}" CornerRadius="6" Padding="10" Margin="0,0,0,4">
+                                            <TextBlock>
+                                                <Run Text="{Binding Topic, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                <Run Text=" · "/><Run Text="{Binding MeetingCode, Mode=OneWay}"/>
+                                                <Run Text=" · Host: "/><Run Text="{Binding HostDisplayName, Mode=OneWay}"/>
+                                                <Run Text=" · "/><Run Text="{Binding CreatedAtUtc, Mode=OneWay, StringFormat='{}{0:g}'}"/>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ===================== AUDIT LOG ===================== -->
+            <TabItem Header="Audit log">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Button Grid.Row="0" Style="{StaticResource GhostButton}" Content="Refresh" HorizontalAlignment="Left"
+                            Margin="0,0,0,10" Command="{Binding RefreshAuditCommand}"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding AuditLog}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource TileBg}" CornerRadius="6" Padding="10,7" Margin="0,0,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="170"/>
+                                                <ColumnDefinition Width="170"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding WhenUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                       Foreground="{StaticResource MutedFg}" FontSize="12"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ActorEmail}" FontSize="12"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Action}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Details}" Foreground="{StaticResource MutedFg}"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

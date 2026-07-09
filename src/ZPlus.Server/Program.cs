@@ -128,8 +128,10 @@ builder.Services.AddSingleton(passwords);
 builder.Services.AddSingleton(new JwtConfig(jwtSigningKey));
 builder.Services.AddSingleton<MeetingStateStore>();
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<TotpService>();
 builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<AuditService>();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 

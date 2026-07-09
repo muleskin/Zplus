@@ -11,11 +11,31 @@ namespace ZPlus.Client.ViewModels;
 
 public record ChatRecipientOption(string Label, Guid? UserId);
 
+/// <summary>A transient emoji reaction floating on screen.</summary>
+public partial class ReactionItem : ObservableObject
+{
+    public string Text { get; init; } = "";
+}
+
+/// <summary>One poll option row with a live tally.</summary>
+public partial class PollOptionVm : ObservableObject
+{
+    public int Index { get; init; }
+    public string Text { get; init; } = "";
+    [ObservableProperty] private int _votes;
+    [ObservableProperty] private double _fraction;   // 0..1 for the bar width
+    [ObservableProperty] private bool _isMyVote;
+    public string VotesLabel => Votes == 1 ? "1 vote" : $"{Votes} votes";
+    partial void OnVotesChanged(int value) => OnPropertyChanged(nameof(VotesLabel));
+}
+
 public partial class MeetingViewModel : ObservableObject
 {
     private readonly string _meetingCode;
     private readonly string? _password;
     private readonly MeetingHubClient _hub = new();
+    private readonly ApiClient _api = new();
+    private Guid _meetingId;
     private readonly WebRtcManager _webRtc;
     private readonly MeetingE2ee _e2ee = new();
     private readonly List<ChatMessageDto> _pendingEncrypted = [];
@@ -30,11 +50,49 @@ public partial class MeetingViewModel : ObservableObject
     [ObservableProperty] private ChatRecipientOption? _selectedRecipient;
     [ObservableProperty] private string? _statusMessage;
 
+    // Waiting room
+    [ObservableProperty] private bool _isWaiting;
+    [ObservableProperty] private bool _hasWaiting;
+
+    // Polls
+    [ObservableProperty] private bool _hasActivePoll;
+    [ObservableProperty] private string _pollQuestion = "";
+    [ObservableProperty] private bool _pollIsClosed;
+    [ObservableProperty] private int _pollTotalVotes;
+    [ObservableProperty] private Guid _activePollId;
+    // Host poll composer
+    [ObservableProperty] private string _newPollQuestion = "";
+    [ObservableProperty] private string _newPollOptions = "";
+
+    // Breakouts
+    [ObservableProperty] private bool _hasBreakouts;
+    [ObservableProperty] private bool _breakoutsOpen;
+    [ObservableProperty] private string _myBreakoutRoom = "";
+    [ObservableProperty] private string _breakoutRoomCount = "2";
+
     public ObservableCollection<ParticipantTileViewModel> Tiles { get; } = [];
     public ObservableCollection<ChatMessageDto> ChatMessages { get; } = [];
     public ObservableCollection<ChatRecipientOption> ChatRecipients { get; } = [];
+    public ObservableCollection<ReactionItem> Reactions { get; } = [];
+    public ObservableCollection<WaitingParticipantDto> Waiting { get; } = [];
+    public ObservableCollection<MeetingFileDto> SharedFiles { get; } = [];
+    public ObservableCollection<PollOptionVm> PollOptions { get; } = [];
+    public ObservableCollection<BreakoutRoomDto> BreakoutRooms { get; } = [];
+
+    public string[] ReactionEmojis => ["👍", "👏", "❤️", "😂", "🎉", "✋"];
+
+    /// <summary>The view supplies these: pick a file to upload / a save path for a download.</summary>
+    public Func<Task<string?>>? PickFileToUpload { get; set; }
+    public Func<string, Task<string?>>? PickSaveLocation { get; set; }
+
+    /// <summary>Raised for the whiteboard view: a stroke arrived, or the board was cleared.</summary>
+    public event Action<WhiteboardStrokeDto>? WhiteboardStrokeReceived;
+    public event Action? WhiteboardCleared;
+    /// <summary>Strokes present when we joined, for the view to replay once it's ready.</summary>
+    public List<WhiteboardStrokeDto> InitialWhiteboard { get; } = [];
 
     private ParticipantTileViewModel? _selfTile;
+    private Guid _selfUserId;
 
     /// <summary>Raised when the meeting is over for this client; the argument explains why (null = user chose to leave).</summary>
     public event Action<string?>? MeetingExited;
@@ -57,6 +115,23 @@ public partial class MeetingViewModel : ObservableObject
         _hub.MeetingEnded += () => OnUi(() => MeetingExited?.Invoke("The host ended the meeting."));
         _hub.ConnectionClosed += _ => OnUi(() => StatusMessage = "Connection lost. Reconnecting…");
 
+        // Feature events
+        _hub.ReactionReceived += r => OnUi(() => ShowReaction(r));
+        _hub.ParticipantWaiting += w => OnUi(() => { if (Waiting.All(x => x.ConnectionId != w.ConnectionId)) Waiting.Add(w); HasWaiting = Waiting.Count > 0; });
+        _hub.WaitingCleared += id => OnUi(() => { var m = Waiting.FirstOrDefault(x => x.ConnectionId == id); if (m is not null) Waiting.Remove(m); HasWaiting = Waiting.Count > 0; });
+        _hub.AdmittedToMeeting += s => OnUi(() => { IsWaiting = false; _ = PopulateFromSnapshotAsync(s); });
+        _hub.WaitingDenied += reason => OnUi(() => MeetingExited?.Invoke(reason));
+        _hub.PollStarted += p => OnUi(() => ApplyPollStarted(p));
+        _hub.PollUpdated += r => OnUi(() => ApplyPollResults(r));
+        _hub.PollClosed += _ => OnUi(() => PollIsClosed = true);
+        _hub.FileShared += f => OnUi(() => { if (SharedFiles.All(x => x.FileId != f.FileId)) SharedFiles.Add(f); StatusMessage = $"{f.SenderDisplayName} shared {f.FileName}."; });
+        _hub.WhiteboardStrokeReceived += s => OnUi(() => WhiteboardStrokeReceived?.Invoke(s));
+        _hub.WhiteboardCleared += () => OnUi(() => WhiteboardCleared?.Invoke());
+        _hub.BreakoutsUpdated += s => OnUi(() => ApplyBreakouts(s));
+        _hub.BreakoutAssigned += (room, name) => OnUi(() => { MyBreakoutRoom = room >= 0 ? name : ""; if (room >= 0) StatusMessage = $"You are in {name}."; });
+        _hub.BreakoutsOpened += () => OnUi(() => { BreakoutsOpen = true; StatusMessage = "Breakout rooms are open."; });
+        _hub.BreakoutsClosed += () => OnUi(() => { BreakoutsOpen = false; MyBreakoutRoom = ""; StatusMessage = "Breakout rooms closed."; });
+
         _webRtc.LocalVideoFrame += frame => OnUi(() =>
         {
             if (IsVideoOn) _selfTile?.RenderFrame(frame);
@@ -71,7 +146,37 @@ public partial class MeetingViewModel : ObservableObject
 
         Title = snapshot.Meeting.Topic;
         MeetingCodeDisplay = $"Meeting ID: {snapshot.Meeting.MeetingCode}";
+
+        if (snapshot.InWaitingRoom)
+        {
+            IsWaiting = true;
+            StatusMessage = "Waiting for the host to admit you…";
+            return;
+        }
+
+        await PopulateFromSnapshotAsync(snapshot);
+    }
+
+    /// <summary>Populates the meeting from a join snapshot — used both on direct join and after admission.</summary>
+    private async Task PopulateFromSnapshotAsync(MeetingJoinedSnapshot snapshot)
+    {
+        Title = snapshot.Meeting.Topic;
+        MeetingCodeDisplay = $"Meeting ID: {snapshot.Meeting.MeetingCode}";
         IsSelfHost = snapshot.Self.IsHost;
+        _selfUserId = snapshot.Self.UserId;
+        _meetingId = snapshot.Meeting.Id;
+
+        // Feature catch-up state.
+        foreach (var f in snapshot.SharedFiles ?? []) SharedFiles.Add(f);
+        if (snapshot.ActivePoll is not null)
+        {
+            ApplyPollStarted(snapshot.ActivePoll);
+            if (snapshot.ActivePollResults is not null) ApplyPollResults(snapshot.ActivePollResults);
+        }
+        foreach (var s in snapshot.Whiteboard ?? []) InitialWhiteboard.Add(s);
+        foreach (var w in snapshot.Waiting ?? []) Waiting.Add(w);
+        HasWaiting = Waiting.Count > 0;
+        if (snapshot.Breakouts is not null) ApplyBreakouts(snapshot.Breakouts);
 
         _selfTile = ParticipantTileViewModel.From(snapshot.Self, isSelf: true);
         Tiles.Add(_selfTile);
@@ -295,6 +400,183 @@ public partial class MeetingViewModel : ObservableObject
     {
         if (tile is null || tile.IsSelf) return;
         try { await _hub.TransferHostAsync(tile.ConnectionId); } catch { StatusMessage = "Host transfer failed."; }
+    }
+
+    // ---- Feature handlers --------------------------------------------------------
+
+    private async void ShowReaction(ReactionDto r)
+    {
+        var item = new ReactionItem { Text = r.Emoji };
+        Reactions.Add(item);
+        try { await Task.Delay(4000); } catch { /* ignore */ }
+        Reactions.Remove(item);
+    }
+
+    private void ApplyPollStarted(PollDto p)
+    {
+        HasActivePoll = true;
+        PollIsClosed = p.IsClosed;
+        ActivePollId = p.PollId;
+        PollQuestion = p.Question;
+        PollTotalVotes = 0;
+        PollOptions.Clear();
+        for (int i = 0; i < p.Options.Count; i++)
+            PollOptions.Add(new PollOptionVm { Index = i, Text = p.Options[i] });
+    }
+
+    private void ApplyPollResults(PollResultsDto r)
+    {
+        if (r.PollId != ActivePollId) return;
+        PollTotalVotes = r.TotalVotes;
+        PollIsClosed = r.IsClosed;
+        for (int i = 0; i < PollOptions.Count && i < r.Votes.Count; i++)
+        {
+            PollOptions[i].Votes = r.Votes[i];
+            PollOptions[i].Fraction = r.TotalVotes > 0 ? (double)r.Votes[i] / r.TotalVotes : 0;
+        }
+    }
+
+    private void ApplyBreakouts(BreakoutStateDto s)
+    {
+        HasBreakouts = s.Rooms.Count > 0;
+        BreakoutsOpen = s.IsOpen;
+        BreakoutRooms.Clear();
+        foreach (var room in s.Rooms) BreakoutRooms.Add(room);
+        var mine = s.Rooms.FirstOrDefault(r => r.Members.Any(m => m.UserId == _selfUserId));
+        MyBreakoutRoom = mine is null ? "" : s.IsOpen ? mine.Name : $"{mine.Name} (opens soon)";
+    }
+
+    // ---- Feature commands --------------------------------------------------------
+
+    [RelayCommand]
+    private async Task SendReactionAsync(string? emoji)
+    {
+        if (string.IsNullOrEmpty(emoji)) return;
+        try { await _hub.SendReactionAsync(emoji); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task AdmitAsync(WaitingParticipantDto? w)
+    {
+        if (w is null) return;
+        try { await _hub.AdmitParticipantAsync(w.ConnectionId); } catch { StatusMessage = "Admit failed."; }
+    }
+
+    [RelayCommand]
+    private async Task DenyAsync(WaitingParticipantDto? w)
+    {
+        if (w is null) return;
+        try { await _hub.DenyParticipantAsync(w.ConnectionId); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CreatePollAsync()
+    {
+        var q = NewPollQuestion.Trim();
+        var opts = NewPollOptions
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (q.Length == 0 || opts.Count < 2)
+        {
+            StatusMessage = "Enter a question and at least two options (one per line).";
+            return;
+        }
+        try
+        {
+            await _hub.CreatePollAsync(q, opts);
+            NewPollQuestion = "";
+            NewPollOptions = "";
+        }
+        catch (Exception ex) { StatusMessage = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task VoteAsync(PollOptionVm? option)
+    {
+        if (option is null || PollIsClosed) return;
+        foreach (var o in PollOptions) o.IsMyVote = o.Index == option.Index;
+        try { await _hub.VotePollAsync(ActivePollId, option.Index); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task ClosePollAsync()
+    {
+        if (!HasActivePoll) return;
+        try { await _hub.ClosePollAsync(ActivePollId); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task ShareFileAsync()
+    {
+        if (PickFileToUpload is null) return;
+        var path = await PickFileToUpload();
+        if (string.IsNullOrEmpty(path)) return;
+        try
+        {
+            StatusMessage = "Uploading…";
+            var uploaded = await _api.UploadFileAsync(_meetingId, path);
+            await _hub.ShareFileAsync(uploaded.FileId);
+            StatusMessage = $"Shared {uploaded.FileName}.";
+        }
+        catch (Exception ex) { StatusMessage = $"Upload failed: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private async Task DownloadFileAsync(MeetingFileDto? file)
+    {
+        if (file is null || PickSaveLocation is null) return;
+        var dest = await PickSaveLocation(file.FileName);
+        if (string.IsNullOrEmpty(dest)) return;
+        try
+        {
+            await _api.DownloadFileAsync(file.DownloadPath, dest);
+            StatusMessage = $"Saved {file.FileName}.";
+        }
+        catch (Exception ex) { StatusMessage = $"Download failed: {ex.Message}"; }
+    }
+
+    /// <summary>Called by the whiteboard view when the user draws a stroke.</summary>
+    public Task SendStrokeAsync(WhiteboardStrokeDto stroke) => _hub.WhiteboardDrawAsync(stroke);
+
+    [RelayCommand]
+    private async Task ClearWhiteboardAsync()
+    {
+        try { await _hub.WhiteboardClearAsync(); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CreateBreakoutsAsync()
+    {
+        if (!int.TryParse(BreakoutRoomCount, out var n) || n < 1)
+        {
+            StatusMessage = "Enter the number of rooms.";
+            return;
+        }
+        try { await _hub.CreateBreakoutRoomsAsync(n); } catch (Exception ex) { StatusMessage = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task AutoAssignBreakoutsAsync()
+    {
+        if (!HasBreakouts || BreakoutRooms.Count == 0) return;
+        int i = 0;
+        foreach (var tile in Tiles.Where(t => !t.IsSelf))
+        {
+            try { await _hub.AssignBreakoutAsync(tile.ConnectionId, i % BreakoutRooms.Count); } catch { /* skip */ }
+            i++;
+        }
+        StatusMessage = "Assigned participants to rooms.";
+    }
+
+    [RelayCommand]
+    private async Task OpenBreakoutsAsync()
+    {
+        try { await _hub.OpenBreakoutsAsync(); } catch { /* best effort */ }
+    }
+
+    [RelayCommand]
+    private async Task CloseBreakoutsAsync()
+    {
+        try { await _hub.CloseBreakoutsAsync(); } catch { /* best effort */ }
     }
 
     // ---- Teardown --------------------------------------------------------------

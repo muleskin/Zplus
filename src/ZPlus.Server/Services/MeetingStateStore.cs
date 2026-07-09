@@ -16,11 +16,28 @@ public class LiveParticipant
     public ParticipantDto ToDto() => new(UserId, ConnectionId, DisplayName, IsHost, IsMuted, IsVideoOn);
 }
 
+/// <summary>Breakout-room layout for a meeting (host-managed, in memory only).</summary>
+public class BreakoutState
+{
+    /// <summary>Room display names, indexed by room number (0-based).</summary>
+    public List<string> RoomNames { get; } = [];
+    /// <summary>Which room each user is assigned to (UserId -> room index).</summary>
+    public ConcurrentDictionary<Guid, int> Assignments { get; } = new();
+    public bool IsOpen { get; set; }
+}
+
 /// <summary>Live state for one active meeting.</summary>
 public class LiveMeeting
 {
     public required Guid MeetingId { get; init; }
     public readonly ConcurrentDictionary<string, LiveParticipant> Participants = new();
+    /// <summary>Connections parked in the waiting room, awaiting host admission.</summary>
+    public readonly ConcurrentDictionary<string, LiveParticipant> Waiting = new();
+    /// <summary>Whiteboard strokes so far, replayed to anyone who joins mid-session.</summary>
+    public readonly List<WhiteboardStrokeDto> WhiteboardStrokes = [];
+    public readonly object WhiteboardLock = new();
+    /// <summary>Null until the host creates breakout rooms.</summary>
+    public BreakoutState? Breakouts { get; set; }
 }
 
 /// <summary>
@@ -50,7 +67,7 @@ public class MeetingStateStore
         if (!_connectionToMeeting.TryRemove(connectionId, out var meetingId)) return null;
         if (!_meetings.TryGetValue(meetingId, out var meeting)) return null;
         if (!meeting.Participants.TryRemove(connectionId, out var participant)) return null;
-        if (meeting.Participants.IsEmpty) _meetings.TryRemove(meetingId, out _);
+        if (meeting.Participants.IsEmpty && meeting.Waiting.IsEmpty) _meetings.TryRemove(meetingId, out _);
         return (meeting, participant);
     }
 
@@ -62,14 +79,33 @@ public class MeetingStateStore
         return (meeting, participant);
     }
 
+    // ---- Waiting room ------------------------------------------------------
+
+    public void AddWaiting(Guid meetingId, LiveParticipant participant)
+    {
+        GetOrCreate(meetingId).Waiting[participant.ConnectionId] = participant;
+        _connectionToMeeting[participant.ConnectionId] = meetingId;
+    }
+
+    /// <summary>Removes a waiter and returns their meeting/participant, if they were waiting.</summary>
+    public (LiveMeeting Meeting, LiveParticipant Participant)? RemoveWaiting(string connectionId)
+    {
+        if (!_connectionToMeeting.TryGetValue(connectionId, out var meetingId)) return null;
+        if (!_meetings.TryGetValue(meetingId, out var meeting)) return null;
+        if (!meeting.Waiting.TryRemove(connectionId, out var participant)) return null;
+        _connectionToMeeting.TryRemove(connectionId, out _);
+        if (meeting.Participants.IsEmpty && meeting.Waiting.IsEmpty) _meetings.TryRemove(meetingId, out _);
+        return (meeting, participant);
+    }
+
     public void EndMeeting(Guid meetingId)
     {
         if (_meetings.TryRemove(meetingId, out var meeting))
         {
             foreach (var connectionId in meeting.Participants.Keys)
-            {
                 _connectionToMeeting.TryRemove(connectionId, out _);
-            }
+            foreach (var connectionId in meeting.Waiting.Keys)
+                _connectionToMeeting.TryRemove(connectionId, out _);
         }
     }
 }

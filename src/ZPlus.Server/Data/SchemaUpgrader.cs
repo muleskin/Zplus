@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace ZPlus.Server.Data;
 
@@ -45,6 +46,73 @@ public static class SchemaUpgrader
             db.Database.ExecuteSqlRaw(statement);
             created.Add(name);
         }
+
+        // Second pass: add columns the model gained on tables that already existed.
+        // (EnsureCreated/GenerateCreateScript build whole tables but never ALTER them.)
+        created.AddRange(AddMissingColumns(db, existing));
         return created;
+    }
+
+    /// <summary>
+    /// For each pre-existing table, adds any columns present in the model but missing from
+    /// the database. Non-nullable additions get a safe default so ALTER TABLE succeeds.
+    /// </summary>
+    private static List<string> AddMissingColumns(AppDbContext db, HashSet<string> preExisting)
+    {
+        var added = new List<string>();
+
+        // Snapshot each pre-existing table's current columns.
+        var tableColumns = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        db.Database.OpenConnection();
+        try
+        {
+            foreach (var entityType in db.Model.GetEntityTypes())
+            {
+                var table = entityType.GetTableName();
+                if (table is null || !preExisting.Contains(table) || tableColumns.ContainsKey(table)) continue;
+
+                var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using var pragma = db.Database.GetDbConnection().CreateCommand();
+                pragma.CommandText = $"PRAGMA table_info(\"{table}\")";
+                using var reader = pragma.ExecuteReader();
+                while (reader.Read()) cols.Add(reader.GetString(1)); // (cid, name, type, notnull, dflt, pk)
+                tableColumns[table] = cols;
+            }
+        }
+        finally
+        {
+            db.Database.CloseConnection();
+        }
+
+        foreach (var entityType in db.Model.GetEntityTypes())
+        {
+            var table = entityType.GetTableName();
+            if (table is null || !tableColumns.TryGetValue(table, out var have)) continue;
+            var storeObject = StoreObjectIdentifier.Table(table, entityType.GetSchema());
+
+            foreach (var property in entityType.GetProperties())
+            {
+                var column = property.GetColumnName(storeObject);
+                if (column is null || have.Contains(column)) continue;
+
+                var storeType = property.GetColumnType() ?? property.GetRelationalTypeMapping().StoreType;
+                var ddl = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {storeType}";
+                if (!property.IsNullable) ddl += $" NOT NULL DEFAULT {DefaultLiteral(property.ClrType)}";
+                db.Database.ExecuteSqlRaw(ddl);
+                added.Add($"{table}.{column}");
+            }
+        }
+        return added;
+    }
+
+    private static string DefaultLiteral(Type clrType)
+    {
+        var t = Nullable.GetUnderlyingType(clrType) ?? clrType;
+        if (t == typeof(string)) return "''";
+        if (t == typeof(byte[])) return "x''";
+        if (t == typeof(bool)) return "0";
+        if (t == typeof(DateTime) || t == typeof(DateTimeOffset)) return "'0001-01-01 00:00:00'";
+        if (t == typeof(Guid)) return "''";
+        return "0"; // numeric types
     }
 }

@@ -23,6 +23,21 @@
         <TextBlock Text="Password" Classes="muted" Margin="0,12,0,4"/>
         <TextBox Text="{Binding Password}" PasswordChar="●"/>
 
+        <!-- Two-factor authentication (shown only when required) -->
+        <StackPanel IsVisible="{Binding MfaRequired}">
+            <Border Background="#FF2C2F38" CornerRadius="6" Padding="10" Margin="0,14,0,0">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding MfaInfo}" TextWrapping="Wrap" Classes="muted" FontSize="12"/>
+                    <StackPanel Spacing="2" IsVisible="{Binding MfaSecret, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="Setup key (type into your authenticator):" Classes="muted" FontSize="11"/>
+                        <TextBox Text="{Binding MfaSecret, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <TextBlock Text="Authentication code" Classes="muted" Margin="0,10,0,4"/>
+            <TextBox Text="{Binding MfaCode}" MaxLength="6"/>
+        </StackPanel>
+
         <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap" Margin="0,12,0,0"/>
 
         <Button Classes="primary" Margin="0,16,0,0" Content="{Binding SubmitLabel}" IsDefault="True"

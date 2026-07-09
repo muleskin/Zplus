@@ -23,6 +23,28 @@ public class MeetingHubClient : IAsyncDisposable
     public event Action? MeetingEnded;
     public event Action<Exception?>? ConnectionClosed;
 
+    // Reactions
+    public event Action<ReactionDto>? ReactionReceived;
+    // Waiting room
+    public event Action<WaitingParticipantDto>? ParticipantWaiting;
+    public event Action<string>? WaitingCleared;
+    public event Action<MeetingJoinedSnapshot>? AdmittedToMeeting;
+    public event Action<string>? WaitingDenied;
+    // Polls
+    public event Action<PollDto>? PollStarted;
+    public event Action<PollResultsDto>? PollUpdated;
+    public event Action<Guid>? PollClosed;
+    // File sharing
+    public event Action<MeetingFileDto>? FileShared;
+    // Whiteboard
+    public event Action<WhiteboardStrokeDto>? WhiteboardStrokeReceived;
+    public event Action? WhiteboardCleared;
+    // Breakout rooms
+    public event Action<BreakoutStateDto>? BreakoutsUpdated;
+    public event Action<int, string>? BreakoutAssigned;
+    public event Action? BreakoutsOpened;
+    public event Action? BreakoutsClosed;
+
     public string? ConnectionId => _connection.ConnectionId;
 
     public MeetingHubClient()
@@ -46,6 +68,21 @@ public class MeetingHubClient : IAsyncDisposable
         _connection.On(HubEvents.UnmuteRequested, () => UnmuteRequested?.Invoke());
         _connection.On(HubEvents.RemovedFromMeeting, () => RemovedFromMeeting?.Invoke());
         _connection.On(HubEvents.MeetingEnded, () => MeetingEnded?.Invoke());
+        _connection.On<ReactionDto>(HubEvents.ReactionReceived, r => ReactionReceived?.Invoke(r));
+        _connection.On<WaitingParticipantDto>(HubEvents.ParticipantWaiting, w => ParticipantWaiting?.Invoke(w));
+        _connection.On<string>(HubEvents.WaitingCleared, c => WaitingCleared?.Invoke(c));
+        _connection.On<MeetingJoinedSnapshot>(HubEvents.AdmittedToMeeting, s => AdmittedToMeeting?.Invoke(s));
+        _connection.On<string>(HubEvents.WaitingDenied, r => WaitingDenied?.Invoke(r));
+        _connection.On<PollDto>(HubEvents.PollStarted, p => PollStarted?.Invoke(p));
+        _connection.On<PollResultsDto>(HubEvents.PollUpdated, r => PollUpdated?.Invoke(r));
+        _connection.On<Guid>(HubEvents.PollClosed, id => PollClosed?.Invoke(id));
+        _connection.On<MeetingFileDto>(HubEvents.FileShared, f => FileShared?.Invoke(f));
+        _connection.On<WhiteboardStrokeDto>(HubEvents.WhiteboardStrokeReceived, s => WhiteboardStrokeReceived?.Invoke(s));
+        _connection.On(HubEvents.WhiteboardCleared, () => WhiteboardCleared?.Invoke());
+        _connection.On<BreakoutStateDto>(HubEvents.BreakoutsUpdated, s => BreakoutsUpdated?.Invoke(s));
+        _connection.On<int, string>(HubEvents.BreakoutAssigned, (i, n) => BreakoutAssigned?.Invoke(i, n));
+        _connection.On(HubEvents.BreakoutsOpened, () => BreakoutsOpened?.Invoke());
+        _connection.On(HubEvents.BreakoutsClosed, () => BreakoutsClosed?.Invoke());
         _connection.Closed += ex => { ConnectionClosed?.Invoke(ex); return Task.CompletedTask; };
     }
 
@@ -78,6 +115,38 @@ public class MeetingHubClient : IAsyncDisposable
         _connection.InvokeAsync(HubMethods.TransferHost, targetConnectionId);
 
     public Task EndMeetingForAllAsync() => _connection.InvokeAsync(HubMethods.EndMeetingForAll);
+
+    // Reactions
+    public Task SendReactionAsync(string emoji) => _connection.InvokeAsync(HubMethods.SendReaction, emoji);
+
+    // Waiting room
+    public Task AdmitParticipantAsync(string targetConnectionId) =>
+        _connection.InvokeAsync(HubMethods.AdmitParticipant, targetConnectionId);
+    public Task DenyParticipantAsync(string targetConnectionId) =>
+        _connection.InvokeAsync(HubMethods.DenyParticipant, targetConnectionId);
+
+    // Polls
+    public Task CreatePollAsync(string question, List<string> options) =>
+        _connection.InvokeAsync(HubMethods.CreatePoll, question, options);
+    public Task VotePollAsync(Guid pollId, int optionIndex) =>
+        _connection.InvokeAsync(HubMethods.VotePoll, pollId, optionIndex);
+    public Task ClosePollAsync(Guid pollId) => _connection.InvokeAsync(HubMethods.ClosePoll, pollId);
+
+    // File sharing (announce a file already uploaded via REST)
+    public Task ShareFileAsync(Guid fileId) => _connection.InvokeAsync(HubMethods.ShareFile, fileId);
+
+    // Whiteboard
+    public Task WhiteboardDrawAsync(WhiteboardStrokeDto stroke) =>
+        _connection.InvokeAsync(HubMethods.WhiteboardDraw, stroke);
+    public Task WhiteboardClearAsync() => _connection.InvokeAsync(HubMethods.WhiteboardClear);
+
+    // Breakout rooms
+    public Task CreateBreakoutRoomsAsync(int count) =>
+        _connection.InvokeAsync(HubMethods.CreateBreakoutRooms, count);
+    public Task AssignBreakoutAsync(string targetConnectionId, int roomIndex) =>
+        _connection.InvokeAsync(HubMethods.AssignBreakout, targetConnectionId, roomIndex);
+    public Task OpenBreakoutsAsync() => _connection.InvokeAsync(HubMethods.OpenBreakouts);
+    public Task CloseBreakoutsAsync() => _connection.InvokeAsync(HubMethods.CloseBreakouts);
 
     public async ValueTask DisposeAsync()
     {

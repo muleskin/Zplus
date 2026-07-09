@@ -53,6 +53,7 @@ public class MeetingsController(
             HostUserId = host.Id,
             ScheduledStartUtc = request.ScheduledStartUtc,
             DurationMinutes = request.DurationMinutes,
+            WaitingRoomEnabled = request.WaitingRoomEnabled,
             // Instant meetings (no scheduled start) are live immediately.
             IsActive = request.ScheduledStartUtc is null,
         };

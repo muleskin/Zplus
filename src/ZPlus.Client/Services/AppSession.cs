@@ -7,7 +7,7 @@ public class AppSession
 {
     public static AppSession Current { get; } = new();
 
-    public string ServerUrl { get; set; } = "http://localhost:5199";
+    public string ServerUrl { get; set; } = LocalSettings.Current.ServerUrl;
     public string? Token { get; set; }
     public UserDto? User { get; set; }
 

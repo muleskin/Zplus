@@ -28,6 +28,7 @@
   <!-- Shared with the WPF client: services and pre-meeting view-models are UI-framework-free. -->
   <ItemGroup>
     <Compile Include="..\ZPlus.Client\Services\AppSession.cs" Link="Services\AppSession.cs" />
+    <Compile Include="..\ZPlus.Client\Services\LocalSettings.cs" Link="Services\LocalSettings.cs" />
     <Compile Include="..\ZPlus.Client\Services\ApiClient.cs" Link="Services\ApiClient.cs" />
     <Compile Include="..\ZPlus.Client\Services\MeetingHubClient.cs" Link="Services\MeetingHubClient.cs" />
     <Compile Include="..\ZPlus.Client\Services\DeepLink.cs" Link="Services\DeepLink.cs" />

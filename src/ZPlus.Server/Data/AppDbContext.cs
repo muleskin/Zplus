@@ -11,6 +11,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChatMessageRecord> ChatMessages => Set<ChatMessageRecord>();
     public DbSet<ServerSetting> ServerSettings => Set<ServerSetting>();
     public DbSet<MeetingInvitation> MeetingInvitations => Set<MeetingInvitation>();
+    public DbSet<Poll> Polls => Set<Poll>();
+    public DbSet<PollVote> PollVotes => Set<PollVote>();
+    public DbSet<MeetingFile> MeetingFiles => Set<MeetingFile>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,5 +28,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<MeetingParticipantRecord>().HasIndex(p => p.MeetingId);
         modelBuilder.Entity<MeetingInvitation>().HasIndex(i => i.MeetingId);
         modelBuilder.Entity<ChatMessageRecord>().HasIndex(c => c.MeetingId);
+        modelBuilder.Entity<Poll>().HasIndex(p => p.MeetingId);
+        modelBuilder.Entity<PollVote>().HasIndex(v => new { v.PollId, v.UserId }).IsUnique();
+        modelBuilder.Entity<MeetingFile>().HasIndex(f => f.MeetingId);
+        modelBuilder.Entity<AuditLog>().HasIndex(a => a.WhenUtc);
     }
 }

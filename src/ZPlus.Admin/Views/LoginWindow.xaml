@@ -1,11 +1,14 @@
 <Window x:Class="ZPlus.Admin.Views.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Z+ Admin — Sign in" Height="420" Width="400"
+        Title="Z+ Admin — Sign in" Height="560" Width="400"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBg}">
     <Grid Margin="32">
         <StackPanel VerticalAlignment="Center">
+            <StackPanel.Resources>
+                <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            </StackPanel.Resources>
             <TextBlock Text="Z+ Admin" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
                        Foreground="{StaticResource AccentBg}"/>
             <TextBlock Text="Server administration console" HorizontalAlignment="Center"
@@ -19,6 +22,32 @@
 
             <TextBlock Text="Password" Foreground="{StaticResource MutedFg}" Margin="0,12,0,4"/>
             <PasswordBox x:Name="PasswordInput" PasswordChanged="OnPasswordChanged"/>
+
+            <!-- Two-factor authentication (shown only when required) -->
+            <StackPanel Visibility="{Binding MfaRequired, Converter={StaticResource BoolToVis}}">
+                <Border Background="{StaticResource TileBg}" CornerRadius="6" Padding="10" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding MfaInfo}" TextWrapping="Wrap" Foreground="{StaticResource MutedFg}" FontSize="12"/>
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MfaSecret}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="Setup key (type into your authenticator):" Foreground="{StaticResource MutedFg}"
+                                       FontSize="11" Margin="0,8,0,2"/>
+                            <TextBox Text="{Binding MfaSecret, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Authentication code" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
+                <TextBox Text="{Binding MfaCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="6"/>
+            </StackPanel>
 
             <TextBlock Text="{Binding Error}" Foreground="#FFFF7B7B" TextWrapping="Wrap" Margin="0,12,0,0"/>
 

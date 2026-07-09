@@ -12,6 +12,8 @@
                 <Border Background="#FF24262E" CornerRadius="10" Padding="20">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Start" FontSize="16" FontWeight="SemiBold"/>
+                        <CheckBox IsChecked="{Binding WaitingRoomEnabled}"
+                                  Content="Enable waiting room (admit people yourself)"/>
                         <Button Classes="primary" Content="Start an instant meeting"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                 Command="{Binding StartInstantMeetingCommand}"/>

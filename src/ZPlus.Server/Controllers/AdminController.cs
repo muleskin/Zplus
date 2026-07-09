@@ -20,9 +20,13 @@ public class AdminController(
     MeetingStateStore state,
     PasswordService passwords,
     EmailService email,
+    AuditService audit,
+    TotpService totp,
+    SecretProtector protector,
     IHubContext<MeetingHub> hub) : ControllerBase
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private string CurrentEmail => User.FindFirstValue(ClaimTypes.Email) ?? "";
     private bool IsSuperAdmin => User.IsInRole(Roles.SuperAdmin);
 
     // ---- Users -------------------------------------------------------------
@@ -32,7 +36,7 @@ public class AdminController(
     {
         var users = await db.Users.AsNoTracking()
             .OrderBy(u => u.Email)
-            .Select(u => new AdminUserDto(u.Id, u.Email, u.DisplayName, u.Role, u.IsDisabled, u.CreatedAtUtc))
+            .Select(u => new AdminUserDto(u.Id, u.Email, u.DisplayName, u.Role, u.IsDisabled, u.CreatedAtUtc, u.MfaEnabled, u.MfaRequired))
             .ToListAsync();
         return Ok(users);
     }
@@ -58,7 +62,8 @@ public class AdminController(
         user.PasswordHash = passwords.Protect(request.Password);
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc));
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "user.create", $"{user.Email} ({user.Role})");
+        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc, user.MfaEnabled, user.MfaRequired));
     }
 
     [HttpPut("users/{id:guid}")]
@@ -92,7 +97,9 @@ public class AdminController(
             user.DisplayName = request.DisplayName.Trim();
 
         await db.SaveChangesAsync();
-        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc));
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "user.update",
+            $"{user.Email}: role={user.Role}, disabled={user.IsDisabled}");
+        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc, user.MfaEnabled, user.MfaRequired));
     }
 
     [HttpPost("users/{id:guid}/reset-password")]
@@ -108,6 +115,7 @@ public class AdminController(
 
         user.PasswordHash = passwords.Protect(request.NewPassword);
         await db.SaveChangesAsync();
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "user.reset-password", user.Email);
         return Ok();
     }
 
@@ -156,6 +164,7 @@ public class AdminController(
         }
 
         await settings.SaveAsync(request);
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "settings.save", $"listen={request.ListenUrl}, provider={request.EmailProvider}");
         return Ok(await settings.GetAsync());
     }
 
@@ -205,6 +214,105 @@ public class AdminController(
 
         await hub.Clients.Group(MeetingHub.GroupName(id)).SendAsync(HubEvents.MeetingEnded);
         state.EndMeeting(id);
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "meeting.force-end", $"{meeting.MeetingCode} ({meeting.Topic})");
         return Ok();
+    }
+
+    // ---- Dashboard ---------------------------------------------------------------
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<DashboardStatsDto>> GetStats()
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        int totalUsers = await db.Users.CountAsync();
+        int admins = await db.Users.CountAsync(u => u.Role == Roles.Admin || u.Role == Roles.SuperAdmin);
+        int disabled = await db.Users.CountAsync(u => u.IsDisabled);
+        int mfa = await db.Users.CountAsync(u => u.MfaEnabled);
+        int meetingsTotal = await db.Meetings.CountAsync();
+        int meetingsToday = await db.Meetings.CountAsync(m => m.CreatedAtUtc >= todayUtc);
+        int messages = await db.ChatMessages.CountAsync();
+
+        var activeMeetings = await db.Meetings
+            .Where(m => m.IsActive && m.EndedAtUtc == null)
+            .Select(m => m.Id).ToListAsync();
+        int activeParticipants = activeMeetings.Sum(id => state.Get(id)?.Participants.Count ?? 0);
+
+        return Ok(new DashboardStatsDto(
+            totalUsers, admins, disabled, mfa,
+            activeMeetings.Count, activeParticipants,
+            meetingsToday, meetingsTotal, messages));
+    }
+
+    // ---- Audit log ---------------------------------------------------------------
+
+    [HttpGet("audit")]
+    public async Task<ActionResult<List<AuditLogDto>>> GetAudit()
+    {
+        var logs = await db.AuditLogs.AsNoTracking()
+            .OrderByDescending(a => a.Id)
+            .Take(300)
+            .Select(a => new AuditLogDto(a.Id, a.WhenUtc, a.ActorEmail, a.Action, a.Details))
+            .ToListAsync();
+        return Ok(logs);
+    }
+
+    // ---- Smart search ------------------------------------------------------------
+
+    [HttpGet("search")]
+    public async Task<ActionResult<SearchResultsDto>> Search([FromQuery] string q)
+    {
+        q = (q ?? "").Trim();
+        if (q.Length == 0) return Ok(new SearchResultsDto([], []));
+        var like = q.ToLowerInvariant();
+
+        var users = await db.Users.AsNoTracking()
+            .Where(u => u.Email.ToLower().Contains(like) || u.DisplayName.ToLower().Contains(like))
+            .OrderBy(u => u.Email).Take(50)
+            .Select(u => new AdminUserDto(u.Id, u.Email, u.DisplayName, u.Role, u.IsDisabled, u.CreatedAtUtc, u.MfaEnabled, u.MfaRequired))
+            .ToListAsync();
+
+        var meetings = await db.Meetings.AsNoTracking().Include(m => m.Host)
+            .Where(m => m.Topic.ToLower().Contains(like) || m.MeetingCode.Contains(q))
+            .OrderByDescending(m => m.CreatedAtUtc).Take(50)
+            .Select(m => new AdminMeetingDto(m.Id, m.MeetingCode, m.Topic, m.Host!.DisplayName, m.IsActive, m.CreatedAtUtc, m.EndedAtUtc))
+            .ToListAsync();
+
+        return Ok(new SearchResultsDto(users, meetings));
+    }
+
+    // ---- MFA management ----------------------------------------------------------
+
+    /// <summary>Requires MFA for a user: they must enroll an authenticator on next sign-in.</summary>
+    [HttpPost("users/{id:guid}/mfa/require")]
+    public async Task<ActionResult<AdminUserDto>> RequireMfa(Guid id)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user is null) return NotFound("User not found.");
+        if (user.Role == Roles.SuperAdmin && !IsSuperAdmin)
+            return StatusCode(403, "Only a super admin can change a super admin's MFA.");
+
+        user.MfaRequired = true;
+        user.MfaEnabled = false;
+        user.TotpSecret = null;
+        await db.SaveChangesAsync();
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "user.mfa-require", user.Email);
+        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc, user.MfaEnabled, user.MfaRequired));
+    }
+
+    /// <summary>Disables MFA for a user and clears their enrollment.</summary>
+    [HttpPost("users/{id:guid}/mfa/reset")]
+    public async Task<ActionResult<AdminUserDto>> ResetMfa(Guid id)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user is null) return NotFound("User not found.");
+        if (user.Role == Roles.SuperAdmin && !IsSuperAdmin)
+            return StatusCode(403, "Only a super admin can change a super admin's MFA.");
+
+        user.MfaRequired = false;
+        user.MfaEnabled = false;
+        user.TotpSecret = null;
+        await db.SaveChangesAsync();
+        await audit.LogAsync(CurrentUserId, CurrentEmail, "user.mfa-reset", user.Email);
+        return Ok(new AdminUserDto(user.Id, user.Email, user.DisplayName, user.Role, user.IsDisabled, user.CreatedAtUtc, user.MfaEnabled, user.MfaRequired));
     }
 }

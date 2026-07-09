@@ -16,9 +16,33 @@
         <Grid Grid.Row="1" ColumnDefinitions="320,*" Margin="12,0">
             <!-- Participants -->
             <Border Grid.Column="0" Background="#FF24262E" CornerRadius="10" Padding="12" Margin="0,0,8,0">
-                <Grid RowDefinitions="Auto,*">
-                    <TextBlock Grid.Row="0" Text="Participants" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <ScrollViewer Grid.Row="1">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <!-- Waiting room (host) -->
+                    <Border Grid.Row="0" Background="#FF2C2F38" CornerRadius="8" Padding="8" Margin="0,0,0,8"
+                            IsVisible="{Binding HasWaiting}">
+                        <StackPanel>
+                            <TextBlock Text="Waiting room" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding Waiting}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                                <Button Classes="primary" Content="Admit" FontSize="10" Padding="8,3"
+                                                        Command="{Binding $parent[Window].DataContext.AdmitCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost" Content="Deny" FontSize="10" Padding="8,3"
+                                                        Command="{Binding $parent[Window].DataContext.DenyCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Row="1" Text="Participants" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="2">
                         <ItemsControl ItemsSource="{Binding Participants}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -50,46 +74,183 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+                    <TextBlock Grid.Row="3" Foreground="#FF2D8CFF" FontSize="12" Margin="0,6,0,0"
+                               Text="{Binding MyBreakoutRoom, StringFormat='You are in {0}'}"
+                               IsVisible="{Binding BreakoutsOpen}"/>
                 </Grid>
             </Border>
 
-            <!-- Chat -->
-            <Border Grid.Column="1" Background="#FF24262E" CornerRadius="10" Padding="12">
-                <Grid RowDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Row="0" Text="Chat" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <ScrollViewer Grid.Row="1" Name="ChatScroll">
-                        <ItemsControl ItemsSource="{Binding ChatMessages}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="0,3">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" FontSize="12"/>
-                                            <TextBlock Text="(private)" Foreground="#FF2D8CFF" FontSize="12"
-                                                       IsVisible="{Binding IsPrivate}"/>
-                                            <TextBlock Text="{Binding Time}" Classes="muted" FontSize="11"/>
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="13"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
-                        <ComboBox ItemsSource="{Binding ChatRecipients}" SelectedItem="{Binding SelectedRecipient}"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Label}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <Grid ColumnDefinitions="*,6,Auto">
-                            <TextBox Grid.Column="0" Text="{Binding ChatText}" Watermark="Type a message…"
-                                     KeyDown="OnChatKeyDown"/>
-                            <Button Grid.Column="2" Classes="primary" Content="Send" Command="{Binding SendChatCommand}"/>
+            <!-- Feature tabs -->
+            <Border Grid.Column="1" Background="#FF24262E" CornerRadius="10" Padding="6">
+                <TabControl>
+                    <!-- Chat -->
+                    <TabItem Header="Chat">
+                        <Grid RowDefinitions="*,Auto" Margin="4">
+                            <ScrollViewer Grid.Row="0" Name="ChatScroll">
+                                <ItemsControl ItemsSource="{Binding ChatMessages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,3">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBlock Text="(private)" Foreground="#FF2D8CFF" FontSize="12"
+                                                               IsVisible="{Binding IsPrivate}"/>
+                                                    <TextBlock Text="{Binding Time}" Classes="muted" FontSize="11"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="13"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <StackPanel Grid.Row="1" Spacing="6" Margin="0,8,0,0">
+                                <ComboBox ItemsSource="{Binding ChatRecipients}" SelectedItem="{Binding SelectedRecipient}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Grid ColumnDefinitions="*,6,Auto">
+                                    <TextBox Grid.Column="0" Text="{Binding ChatText}" Watermark="Type a message…"
+                                             KeyDown="OnChatKeyDown"/>
+                                    <Button Grid.Column="2" Classes="primary" Content="Send" Command="{Binding SendChatCommand}"/>
+                                </Grid>
+                            </StackPanel>
                         </Grid>
-                    </StackPanel>
-                </Grid>
+                    </TabItem>
+
+                    <!-- Polls -->
+                    <TabItem Header="Polls">
+                        <ScrollViewer>
+                            <StackPanel Margin="4" Spacing="6">
+                                <StackPanel IsVisible="{Binding HasActivePoll}" Spacing="4">
+                                    <TextBlock Text="{Binding PollQuestion}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <ItemsControl ItemsSource="{Binding PollOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Margin="0,3" Padding="0" HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Stretch" Classes="ghost"
+                                                        Command="{Binding $parent[Window].DataContext.VoteCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Grid Height="30">
+                                                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}"/>
+                                                        <Grid ColumnDefinitions="*,Auto" Margin="10,0">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Text}" VerticalAlignment="Center" FontSize="13"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding VotesLabel}" Classes="muted"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding PollTotalVotes, StringFormat='{}{0} total vote(s)'}" Classes="muted" FontSize="11"/>
+                                    <TextBlock Text="Poll closed" Foreground="#FF2D8CFF" FontSize="12" IsVisible="{Binding PollIsClosed}"/>
+                                    <Button Content="Close poll" Classes="ghost" HorizontalAlignment="Left"
+                                            Command="{Binding ClosePollCommand}" IsVisible="{Binding IsSelfHost}"/>
+                                </StackPanel>
+                                <StackPanel IsVisible="{Binding IsSelfHost}" Spacing="4" Margin="0,10,0,0">
+                                    <TextBlock Text="Start a new poll" FontWeight="SemiBold"/>
+                                    <TextBox Text="{Binding NewPollQuestion}" Watermark="Question"/>
+                                    <TextBox Text="{Binding NewPollOptions}" AcceptsReturn="True" Height="80"
+                                             Watermark="One option per line (2–10)" TextWrapping="Wrap"/>
+                                    <Button Content="Start poll" Classes="primary" HorizontalAlignment="Left"
+                                            Command="{Binding CreatePollCommand}"/>
+                                </StackPanel>
+                                <TextBlock Text="No active poll." Classes="muted" IsVisible="{Binding !HasActivePoll}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Files -->
+                    <TabItem Header="Files">
+                        <Grid RowDefinitions="Auto,*" Margin="4">
+                            <Button Grid.Row="0" Content="Share a file" Classes="primary" HorizontalAlignment="Left"
+                                    Margin="0,0,0,8" Command="{Binding ShareFileCommand}"/>
+                            <ScrollViewer Grid.Row="1">
+                                <ItemsControl ItemsSource="{Binding SharedFiles}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#FF2C2F38" CornerRadius="6" Padding="8" Margin="0,0,0,4">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Classes="muted" FontSize="11"
+                                                                   Text="{Binding SenderDisplayName}"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="Save" Classes="ghost" Padding="10,4"
+                                                            Command="{Binding $parent[Window].DataContext.DownloadFileCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Whiteboard -->
+                    <TabItem Header="Board">
+                        <Grid RowDefinitions="Auto,*" Margin="4">
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="0,0,0,6">
+                                <Button Width="20" Height="20" Background="#FFEDEDED" Click="OnPickColor" Tag="#FFEDEDED"/>
+                                <Button Width="20" Height="20" Background="#FF2D8CFF" Click="OnPickColor" Tag="#FF2D8CFF"/>
+                                <Button Width="20" Height="20" Background="#FFE02F44" Click="OnPickColor" Tag="#FFE02F44"/>
+                                <Button Width="20" Height="20" Background="#FF7BE28B" Click="OnPickColor" Tag="#FF7BE28B"/>
+                                <Button Width="20" Height="20" Background="#FFF2C94C" Click="OnPickColor" Tag="#FFF2C94C"/>
+                                <Button Content="Clear" Classes="ghost" Padding="10,3" Margin="8,0,0,0"
+                                        Command="{Binding ClearWhiteboardCommand}"/>
+                            </StackPanel>
+                            <Border Grid.Row="1" Background="#FF14161A" CornerRadius="6" ClipToBounds="True">
+                                <Canvas Name="Whiteboard" Background="#FF14161A"
+                                        PointerPressed="OnBoardDown" PointerMoved="OnBoardMove" PointerReleased="OnBoardUp"
+                                        SizeChanged="OnBoardSizeChanged"/>
+                            </Border>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Breakout rooms -->
+                    <TabItem Header="Rooms">
+                        <ScrollViewer>
+                            <StackPanel Margin="4" Spacing="6">
+                                <TextBlock Text="{Binding MyBreakoutRoom, StringFormat='Your room: {0}'}" FontWeight="SemiBold"
+                                           IsVisible="{Binding BreakoutsOpen}"/>
+                                <StackPanel IsVisible="{Binding IsSelfHost}" Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Rooms:" VerticalAlignment="Center"/>
+                                        <TextBox Text="{Binding BreakoutRoomCount}" Width="50"/>
+                                        <Button Content="Create" Classes="ghost" Padding="10,4" Command="{Binding CreateBreakoutsCommand}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasBreakouts}">
+                                        <Button Content="Auto-assign" Classes="ghost" Padding="10,4" Command="{Binding AutoAssignBreakoutsCommand}"/>
+                                        <Button Content="Open" Classes="primary" Padding="10,4" Command="{Binding OpenBreakoutsCommand}"/>
+                                        <Button Content="Close" Classes="ghost" Padding="10,4" Command="{Binding CloseBreakoutsCommand}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding BreakoutRooms}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#FF2C2F38" CornerRadius="6" Padding="8" Margin="0,0,0,4">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                    <ItemsControl ItemsSource="{Binding Members}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding DisplayName}" Classes="muted" FontSize="12"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="No breakout rooms yet." Classes="muted" IsVisible="{Binding !HasBreakouts}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
             </Border>
         </Grid>
 
@@ -97,8 +258,18 @@
         <Border Grid.Row="2" Background="#FF24262E" CornerRadius="10" Margin="12" Padding="16,10">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Roster and chat only — audio/video is not available in this client yet."
-                               Classes="muted" VerticalAlignment="Center" FontSize="12"/>
+                    <ItemsControl ItemsSource="{Binding ReactionEmojis}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}" FontSize="16" Width="40" Classes="ghost"
+                                        Command="{Binding $parent[Window].DataContext.SendReactionCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <Button Classes="ghost" Content="Mute all" Command="{Binding MuteAllCommand}"
                             IsVisible="{Binding IsSelfHost}"/>
                 </StackPanel>
@@ -108,6 +279,26 @@
                     <Button Classes="ghost" Content="Leave" Command="{Binding LeaveCommand}"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- Floating reactions -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Reactions}" IsHitTestVisible="False"
+                      VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,20">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate><TextBlock Text="{Binding Text}" FontSize="40"/></DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Waiting-room overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#F21B1D22" IsVisible="{Binding IsWaiting}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Waiting for the host to let you in…" FontSize="15" Classes="muted" HorizontalAlignment="Center"/>
+                <Button Content="Leave" Classes="ghost" HorizontalAlignment="Center" Command="{Binding LeaveCommand}"/>
+            </StackPanel>
         </Border>
     </Grid>
 </Window>

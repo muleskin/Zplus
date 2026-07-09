@@ -51,7 +51,17 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
 
     public ObservableCollection<UserRowViewModel> Users { get; } = [];
     public ObservableCollection<ActiveMeetingDto> ActiveMeetings { get; } = [];
+    public ObservableCollection<AuditLogDto> AuditLog { get; } = [];
     public string[] AvailableRoles => Roles.All;
+
+    // Dashboard
+    [ObservableProperty] private DashboardStatsDto? _stats;
+
+    // Smart search
+    [ObservableProperty] private string _searchQuery = "";
+    public ObservableCollection<UserRowViewModel> SearchUsers { get; } = [];
+    public ObservableCollection<AdminMeetingDto> SearchMeetings { get; } = [];
+    [ObservableProperty] private string? _searchSummary;
 
     public string HeaderText =>
         $"Signed in as {api.SignedInUser?.DisplayName} ({api.SignedInUser?.Role}) — {api.ServerUrl}";
@@ -66,6 +76,7 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
             await RefreshUsersAsync();
             await RefreshSettingsAsync();
             await RefreshMeetingsAsync();
+            await RefreshStatsAsync();
             Status = "Loaded.";
         });
     }
@@ -130,6 +141,62 @@ public partial class AdminViewModel(AdminApiClient api) : ObservableObject
         {
             await api.ResetPasswordAsync(row.Id, newPassword);
             Status = $"Password reset for {row.Email}.";
+        });
+    }
+
+    /// <summary>Toggles MFA for a user: require it (enroll next login) or reset/disable it.</summary>
+    [RelayCommand]
+    private async Task ToggleMfaAsync(UserRowViewModel? row)
+    {
+        if (row is null) return;
+        await RunAsync(async () =>
+        {
+            var updated = (row.MfaEnabled || row.MfaRequired)
+                ? await api.ResetMfaAsync(row.Id)
+                : await api.RequireMfaAsync(row.Id);
+            row.Apply(updated);
+            Status = $"{row.Email}: {row.MfaLabel}.";
+        });
+    }
+
+    // ---- Dashboard ---------------------------------------------------------------
+
+    [RelayCommand]
+    private async Task RefreshStatsAsync() => await RunAsync(async () => Stats = await api.GetStatsAsync());
+
+    // ---- Audit log ---------------------------------------------------------------
+
+    [RelayCommand]
+    private async Task RefreshAuditAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var entries = await api.GetAuditAsync();
+            AuditLog.Clear();
+            foreach (var e in entries) AuditLog.Add(e);
+            Status = $"Loaded {AuditLog.Count} audit entries.";
+        });
+    }
+
+    // ---- Smart search ------------------------------------------------------------
+
+    [RelayCommand]
+    private async Task SearchAsync()
+    {
+        var q = SearchQuery.Trim();
+        SearchUsers.Clear();
+        SearchMeetings.Clear();
+        if (q.Length == 0)
+        {
+            SearchSummary = "Type a name, email, topic or meeting code to search.";
+            return;
+        }
+        await RunAsync(async () =>
+        {
+            var results = await api.SearchAsync(q);
+            foreach (var u in results.Users) SearchUsers.Add(UserRowViewModel.From(u));
+            foreach (var m in results.Meetings) SearchMeetings.Add(m);
+            SearchSummary = $"{SearchUsers.Count} user(s), {SearchMeetings.Count} meeting(s) for \"{q}\".";
         });
     }
 

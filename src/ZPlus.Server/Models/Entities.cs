@@ -12,6 +12,13 @@ public class User
     public bool IsDisabled { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    /// <summary>TOTP shared secret (base32), stored AES+HMAC-encrypted. Null when MFA is off.</summary>
+    public string? TotpSecret { get; set; }
+    /// <summary>True once the user has completed MFA enrollment.</summary>
+    public bool MfaEnabled { get; set; }
+    /// <summary>True when an admin has required MFA but the user has not enrolled yet.</summary>
+    public bool MfaRequired { get; set; }
+
     public List<Meeting> HostedMeetings { get; set; } = [];
 }
 
@@ -35,6 +42,8 @@ public class Meeting
     public int? DurationMinutes { get; set; }
     /// <summary>Null when the meeting has no password.</summary>
     public string? PasswordHash { get; set; }
+    /// <summary>When true, non-host joiners wait for the host to admit them.</summary>
+    public bool WaitingRoomEnabled { get; set; }
     public bool IsActive { get; set; }
     public DateTime? EndedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -75,4 +84,53 @@ public class ChatMessageRecord
     public bool IsPrivate { get; set; }
     public Guid? RecipientUserId { get; set; }
     public DateTime SentAtUtc { get; set; }
+}
+
+/// <summary>A poll created by a host during a meeting. Options are newline-delimited.</summary>
+public class Poll
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid MeetingId { get; set; }
+    public string Question { get; set; } = "";
+    /// <summary>Answer options, one per line.</summary>
+    public string Options { get; set; } = "";
+    public Guid CreatedByUserId { get; set; }
+    public bool IsClosed { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public List<PollVote> Votes { get; set; } = [];
+}
+
+/// <summary>One participant's vote in a poll (at most one row per user per poll).</summary>
+public class PollVote
+{
+    public long Id { get; set; }
+    public Guid PollId { get; set; }
+    public Guid UserId { get; set; }
+    public int OptionIndex { get; set; }
+}
+
+/// <summary>A file shared into a meeting. The bytes live in the database for portability.</summary>
+public class MeetingFile
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid MeetingId { get; set; }
+    public string FileName { get; set; } = "";
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long Size { get; set; }
+    public Guid SenderUserId { get; set; }
+    public string SenderDisplayName { get; set; } = "";
+    public byte[] Content { get; set; } = [];
+    public DateTime SharedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>An append-only record of a security- or administration-relevant action.</summary>
+public class AuditLog
+{
+    public long Id { get; set; }
+    public DateTime WhenUtc { get; set; } = DateTime.UtcNow;
+    public Guid? ActorUserId { get; set; }
+    public string ActorEmail { get; set; } = "";
+    public string Action { get; set; } = "";
+    public string Details { get; set; } = "";
 }

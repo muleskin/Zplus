@@ -5,7 +5,8 @@ public record CreateMeetingRequest(
     string? Password,
     DateTime? ScheduledStartUtc,
     int? DurationMinutes,
-    List<string>? InviteEmails = null);
+    List<string>? InviteEmails = null,
+    bool WaitingRoomEnabled = false);
 
 /// <summary>Result of creating a meeting, including the outcome of any email invitations.</summary>
 public record CreateMeetingResponse(
@@ -40,7 +41,15 @@ public record MeetingJoinedSnapshot(
     MeetingDto Meeting,
     ParticipantDto Self,
     List<ParticipantDto> Participants,
-    List<ChatMessageDto> RecentChat);
+    List<ChatMessageDto> RecentChat,
+    // Catch-up state for the feature panels. Defaulted so older call sites stay valid.
+    bool InWaitingRoom = false,
+    List<MeetingFileDto>? SharedFiles = null,
+    PollDto? ActivePoll = null,
+    PollResultsDto? ActivePollResults = null,
+    List<WhiteboardStrokeDto>? Whiteboard = null,
+    List<WaitingParticipantDto>? Waiting = null,
+    BreakoutStateDto? Breakouts = null);
 
 public record ChatMessageDto(
     Guid SenderUserId,

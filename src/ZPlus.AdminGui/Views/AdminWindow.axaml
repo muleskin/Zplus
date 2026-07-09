@@ -7,6 +7,43 @@
         <TextBlock Grid.Row="0" Text="{Binding HeaderText}" Classes="muted" Margin="4,0,0,10"/>
 
         <TabControl Grid.Row="1">
+            <!-- ============ DASHBOARD ============ -->
+            <TabItem Header="Dashboard">
+                <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
+                    <Button Grid.Row="0" Classes="ghost" Content="Refresh" HorizontalAlignment="Left"
+                            Margin="0,0,0,12" Command="{Binding RefreshStatsCommand}"/>
+                    <WrapPanel Grid.Row="1" DataContext="{Binding Stats}">
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding TotalUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Total users" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding Admins}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Administrators" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding DisabledUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Disabled accounts" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding MfaEnabledUsers}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="MFA enrolled" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding ActiveMeetings}" FontSize="30" FontWeight="Bold" Foreground="#FF2D8CFF"/>
+                            <TextBlock Text="Active meetings" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding ActiveParticipants}" FontSize="30" FontWeight="Bold" Foreground="#FF2D8CFF"/>
+                            <TextBlock Text="In meetings now" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding MeetingsToday}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Meetings today" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding MeetingsTotal}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Meetings all-time" Classes="muted"/></StackPanel></Border>
+                        <Border Background="#FF2C2F38" CornerRadius="10" Padding="18,14" Margin="0,0,12,12" Width="180">
+                            <StackPanel><TextBlock Text="{Binding MessagesTotal}" FontSize="30" FontWeight="Bold"/>
+                            <TextBlock Text="Chat messages" Classes="muted"/></StackPanel></Border>
+                    </WrapPanel>
+                </Grid>
+            </TabItem>
+
             <!-- ============ USERS ============ -->
             <TabItem Header="Users">
                 <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
@@ -51,14 +88,19 @@
                                             <ComboBox Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Stretch"
                                                       ItemsSource="{Binding $parent[Window].DataContext.AvailableRoles}"
                                                       SelectedItem="{Binding Role}"/>
-                                            <TextBlock Grid.Column="6" Text="{Binding StatusLabel}" VerticalAlignment="Center"
-                                                       HorizontalAlignment="Center"/>
+                                            <StackPanel Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusLabel}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding MfaLabel}" Classes="muted" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
                                             <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="4">
                                                 <Button Classes="primary" Content="Save" Padding="10,5"
                                                         Command="{Binding $parent[Window].DataContext.SaveUserCommand}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Classes="ghost" Content="{Binding DisableButtonLabel}" Padding="10,5"
                                                         Command="{Binding $parent[Window].DataContext.ToggleDisabledCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Classes="ghost" Content="{Binding MfaButtonLabel}" Padding="10,5"
+                                                        Command="{Binding $parent[Window].DataContext.ToggleMfaCommand}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Classes="ghost" Content="Reset password" Padding="10,5"
                                                         Command="{Binding $parent[Window].DataContext.ResetPasswordCommand}"
@@ -175,6 +217,79 @@
                                             <Button Grid.Column="1" Classes="danger" Content="End meeting"
                                                     Command="{Binding $parent[Window].DataContext.ForceEndMeetingCommand}"
                                                     CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ SEARCH ============ -->
+            <TabItem Header="Search">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="0,12,0,0">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding SearchQuery}" VerticalContentAlignment="Center"
+                                 Watermark="Name, email, topic or meeting code"/>
+                        <Button Grid.Column="2" Classes="primary" Content="Search" Command="{Binding SearchCommand}"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding SearchSummary}" Classes="muted" Margin="2,8"/>
+                    <ScrollViewer Grid.Row="2">
+                        <StackPanel>
+                            <TextBlock Text="Users" FontWeight="SemiBold" Margin="2,4"/>
+                            <ItemsControl ItemsSource="{Binding SearchUsers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FF2C2F38" CornerRadius="6" Padding="10" Margin="0,0,0,4">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Email}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding DisplayName}" Classes="muted"/>
+                                                <TextBlock Text="{Binding Role}" Classes="muted"/>
+                                                <TextBlock Text="{Binding StatusLabel}" Classes="muted"/>
+                                                <TextBlock Text="{Binding MfaLabel}" Classes="muted"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Meetings" FontWeight="SemiBold" Margin="2,12,2,4"/>
+                            <ItemsControl ItemsSource="{Binding SearchMeetings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FF2C2F38" CornerRadius="6" Padding="10" Margin="0,0,0,4">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Topic}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding MeetingCode}" Classes="muted"/>
+                                                <TextBlock Text="{Binding HostDisplayName, StringFormat='Host: {0}'}" Classes="muted"/>
+                                                <TextBlock Text="{Binding CreatedAtUtc, StringFormat='{}{0:g}'}" Classes="muted"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ AUDIT LOG ============ -->
+            <TabItem Header="Audit log">
+                <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
+                    <Button Grid.Row="0" Classes="ghost" Content="Refresh" HorizontalAlignment="Left"
+                            Margin="0,0,0,10" Command="{Binding RefreshAuditCommand}"/>
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding AuditLog}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FF2C2F38" CornerRadius="6" Padding="10,7" Margin="0,0,0,4">
+                                        <Grid ColumnDefinitions="150,170,170,*">
+                                            <TextBlock Grid.Column="0" Text="{Binding WhenUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                       Classes="muted" FontSize="12"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ActorEmail}" FontSize="12"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Action}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Details}" Classes="muted" FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

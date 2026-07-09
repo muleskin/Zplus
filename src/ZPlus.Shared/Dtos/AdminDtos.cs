@@ -16,7 +16,9 @@ public record AdminUserDto(
     string DisplayName,
     string Role,
     bool IsDisabled,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    bool MfaEnabled = false,
+    bool MfaRequired = false);
 
 public record AdminCreateUserRequest(string Email, string DisplayName, string Password, string Role);
 
@@ -61,3 +63,40 @@ public record ActiveMeetingDto(
     string HostDisplayName,
     int ParticipantCount,
     DateTime CreatedAtUtc);
+
+// ---- Dashboard ---------------------------------------------------------------
+
+/// <summary>At-a-glance server statistics for the admin dashboard.</summary>
+public record DashboardStatsDto(
+    int TotalUsers,
+    int Admins,
+    int DisabledUsers,
+    int MfaEnabledUsers,
+    int ActiveMeetings,
+    int ActiveParticipants,
+    int MeetingsToday,
+    int MeetingsTotal,
+    int MessagesTotal);
+
+// ---- Audit log ---------------------------------------------------------------
+
+public record AuditLogDto(
+    long Id,
+    DateTime WhenUtc,
+    string ActorEmail,
+    string Action,
+    string Details);
+
+// ---- Smart search ------------------------------------------------------------
+
+public record AdminMeetingDto(
+    Guid Id,
+    string MeetingCode,
+    string Topic,
+    string HostDisplayName,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? EndedAtUtc);
+
+/// <summary>Combined result of a smart search across users and meetings.</summary>
+public record SearchResultsDto(List<AdminUserDto> Users, List<AdminMeetingDto> Meetings);

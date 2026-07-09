@@ -163,12 +163,47 @@ the pair somewhere readable). Enabling HTTPS also encrypts the admin/API traffic
   SQLite (swap the EF Core provider for SQL Server/PostgreSQL in production). Live roster
   state is in-memory (`MeetingStateStore`).
 
-## Roadmap (per project spec)
+## In-meeting features
 
-- **Phase 2**: screen sharing, waiting room, file sharing, recording, reactions
-- **Phase 3**: breakout rooms, whiteboard, polls, captions/transcription, admin dashboard
-- **Phase 4**: SSO, MFA, audit logs, compliance, large meetings (SFU media server)
-- **Phase 5**: AI meeting summaries, action items, translation, smart search
+Beyond core audio/video/chat, meetings support:
+
+- **Waiting room** — enable it when starting/scheduling; non-hosts wait until the host admits
+  or denies them (host sees a pending list in the People tab).
+- **Reactions** — one-click emoji that float over the meeting for everyone.
+- **Polls** — the host starts a poll (question + 2–10 options); everyone votes and sees live
+  tallies; the host can close it. Polls persist for the meeting.
+- **File sharing** — share a file (up to 25 MB) into the meeting; everyone can download it.
+- **Whiteboard** — a shared, collaborative drawing canvas; strokes replay for anyone who
+  joins mid-session; anyone can clear it.
+- **Breakout rooms** — the host creates rooms, auto-assigns participants, and opens/closes
+  them; public chat is scoped to your room while breakouts are open.
+
+The feature panels appear as tabs (People / Chat / Polls / Files / Board / Rooms) in the
+meeting window on both the Windows (WPF) and Linux (Avalonia) clients.
+
+## Admin features
+
+The admin console adds, alongside user/settings/active-meeting management:
+
+- **Dashboard** — at-a-glance stats (users, admins, MFA-enrolled, active meetings/participants,
+  meetings today/all-time, chat totals).
+- **Smart search** — search users and meetings by name, email, topic, or meeting code.
+- **Audit log** — an append-only record of security/admin actions (logins, user create/update,
+  role/disable changes, password/MFA resets, settings saves, force-ends).
+- **MFA (TOTP)** — require or reset multi-factor auth per user. Required users enroll an
+  authenticator app (Google Authenticator, Authy, 1Password, …) at next sign-in; the shared
+  secret is stored AES+HMAC-encrypted and never leaves the server in plaintext.
+
+## Roadmap (remaining, per project spec)
+
+Implemented above: waiting room, reactions, file sharing, breakout rooms, whiteboard, polls,
+admin dashboard, MFA, audit logs, smart search. Still on the roadmap (these need external
+media/AI/identity infrastructure):
+
+- **Phase 2**: screen sharing, recording
+- **Phase 3**: captions/transcription
+- **Phase 4**: SSO, compliance, large meetings (SFU media server)
+- **Phase 5**: AI meeting summaries, action items, translation
 
 ## Production hardening TODOs
 

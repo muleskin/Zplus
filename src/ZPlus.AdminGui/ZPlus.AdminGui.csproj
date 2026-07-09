@@ -28,6 +28,7 @@
   <!-- Shared with the WPF admin app: services and view-models are UI-framework-free. -->
   <ItemGroup>
     <Compile Include="..\ZPlus.Admin\Services\AdminApiClient.cs" Link="Services\AdminApiClient.cs" />
+    <Compile Include="..\ZPlus.Admin\Services\LocalSettings.cs" Link="Services\LocalSettings.cs" />
     <Compile Include="..\ZPlus.Admin\ViewModels\LoginViewModel.cs" Link="ViewModels\LoginViewModel.cs" />
     <Compile Include="..\ZPlus.Admin\ViewModels\AdminViewModel.cs" Link="ViewModels\AdminViewModel.cs" />
     <Compile Include="..\ZPlus.Admin\ViewModels\UserRowViewModel.cs" Link="ViewModels\UserRowViewModel.cs" />

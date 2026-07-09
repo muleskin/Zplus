@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456">
+  <!-- Stylized "Z" -->
+  <polyline points="150,175 300,175 150,305 300,305" fill="none" stroke="#2D8CFF"
+            stroke-width="42" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Plus mark -->
+  <rect x="316" y="150" width="34" height="120" rx="10" fill="#2D8CFF"/>
+  <rect x="273" y="193" width="120" height="34" rx="10" fill="#2D8CFF"/>
+</svg>

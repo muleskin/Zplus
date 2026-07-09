@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZPlus.Client.ViewModels;assembly=ZPlus.Mobile"
+             xmlns:dto="clr-namespace:ZPlus.Shared.Dtos;assembly=ZPlus.Shared"
+             x:Class="ZPlus.Mobile.Views.HomePage"
+             x:DataType="vm:HomeViewModel"
+             Title="Z+">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+            <Label Text="{Binding WelcomeText}" Style="{StaticResource Header}" />
+
+            <Label Text="{Binding Error}" TextColor="#FFFF7B7B" IsVisible="{Binding Error, Converter={StaticResource NotNull}}" />
+            <Label Text="{Binding Info}" TextColor="{StaticResource GoodFg}" IsVisible="{Binding Info, Converter={StaticResource NotNull}}" />
+
+            <!-- Start -->
+            <Border BackgroundColor="{StaticResource PanelBg}" StrokeThickness="0" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Start" Style="{StaticResource Header}" />
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox IsChecked="{Binding WaitingRoomEnabled}" VerticalOptions="Center" />
+                        <Label Text="Enable waiting room" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <Button Text="Start an instant meeting" Command="{Binding StartInstantMeetingCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Join -->
+            <Border BackgroundColor="{StaticResource PanelBg}" StrokeThickness="0" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Join" Style="{StaticResource Header}" />
+                    <Label Text="Meeting ID" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding JoinCode}" Keyboard="Numeric" />
+                    <Label Text="Password (if required)" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding JoinPassword}" IsPassword="True" />
+                    <Button Text="Join meeting" Command="{Binding JoinMeetingCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Schedule -->
+            <Border BackgroundColor="{StaticResource PanelBg}" StrokeThickness="0" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Schedule a meeting" Style="{StaticResource Header}" />
+                    <Label Text="Topic" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding ScheduleTopic}" />
+                    <Grid ColumnDefinitions="*,8,*" ColumnSpacing="0">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <Label Text="Date" Style="{StaticResource Muted}" />
+                            <DatePicker Date="{Binding ScheduleDate}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2" Spacing="2">
+                            <Label Text="Time (HH:mm)" Style="{StaticResource Muted}" />
+                            <Entry Text="{Binding ScheduleTime}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Label Text="Duration (minutes)" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding ScheduleDuration}" Keyboard="Numeric" />
+                    <Label Text="Password (optional)" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding SchedulePassword}" IsPassword="True" />
+                    <Label Text="Invite by email (comma-separated, optional)" Style="{StaticResource Muted}" />
+                    <Entry Text="{Binding ScheduleInvites}" Keyboard="Email" />
+                    <Button Text="Schedule" Command="{Binding ScheduleMeetingCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- My meetings -->
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="Your meetings" Style="{StaticResource Header}" VerticalOptions="Center" />
+                <Button Text="Refresh" Style="{StaticResource Ghost}" Command="{Binding RefreshMeetingsCommand}" />
+            </HorizontalStackLayout>
+            <CollectionView ItemsSource="{Binding MyMeetings}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="dto:MeetingDto">
+                        <Border BackgroundColor="{StaticResource TileBg}" StrokeThickness="0" Padding="12" Margin="0,0,0,6">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Grid.Column="0">
+                                    <Label Text="{Binding Topic}" FontAttributes="Bold" />
+                                    <Label Text="{Binding MeetingCode}" Style="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="Start" Style="{StaticResource Ghost}"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HomeViewModel}}, Path=StartFromListCommand}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

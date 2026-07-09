@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Z+ dark palette -->
+    <Color x:Key="WindowBg">#FF1B1D22</Color>
+    <Color x:Key="PanelBg">#FF24262E</Color>
+    <Color x:Key="TileBg">#FF2C2F38</Color>
+    <Color x:Key="AccentBg">#FF2D8CFF</Color>
+    <Color x:Key="AccentHoverBg">#FF4B9DFF</Color>
+    <Color x:Key="DangerBg">#FFE02F44</Color>
+    <Color x:Key="TextFg">#FFF2F2F2</Color>
+    <Color x:Key="MutedFg">#FF9AA0AA</Color>
+    <Color x:Key="FieldBg">#FF15161A</Color>
+    <Color x:Key="FieldBorder">#FF3A3D46</Color>
+    <Color x:Key="GoodFg">#FF7BE28B</Color>
+
+    <SolidColorBrush x:Key="WindowBgBrush" Color="{StaticResource WindowBg}" />
+    <SolidColorBrush x:Key="PanelBgBrush" Color="{StaticResource PanelBg}" />
+    <SolidColorBrush x:Key="TileBgBrush" Color="{StaticResource TileBg}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentBg}" />
+
+</ResourceDictionary>

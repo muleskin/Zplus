@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZPlus.ClientGui.ViewModels;assembly=ZPlus.Mobile"
+             xmlns:dto="clr-namespace:ZPlus.Shared.Dtos;assembly=ZPlus.Shared"
+             x:Class="ZPlus.Mobile.Views.MeetingPage"
+             x:DataType="vm:MeetingViewModel"
+             Title="{Binding Title}">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Padding="16,10" Spacing="2">
+            <Label Text="{Binding Title}" FontSize="16" FontAttributes="Bold" />
+            <HorizontalStackLayout Spacing="12">
+                <Label Text="{Binding MeetingCodeDisplay}" Style="{StaticResource Muted}" />
+                <Label Text="🔒 E2EE" TextColor="{StaticResource GoodFg}" FontSize="12" IsVisible="{Binding IsE2eeActive}" />
+            </HorizontalStackLayout>
+            <Label Text="{Binding StatusMessage}" TextColor="{StaticResource AccentBg}" FontSize="12"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource NotNull}}" />
+        </VerticalStackLayout>
+
+        <!-- Tab bar -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Padding="12,0">
+            <HorizontalStackLayout Spacing="6">
+                <Button Text="People" Style="{StaticResource Ghost}" Clicked="OnTabPeople" />
+                <Button Text="Chat" Style="{StaticResource Ghost}" Clicked="OnTabChat" />
+                <Button Text="Polls" Style="{StaticResource Ghost}" Clicked="OnTabPolls" />
+                <Button Text="Files" Style="{StaticResource Ghost}" Clicked="OnTabFiles" />
+                <Button Text="Board" Style="{StaticResource Ghost}" Clicked="OnTabBoard" />
+                <Button Text="Rooms" Style="{StaticResource Ghost}" Clicked="OnTabRooms" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Content -->
+        <Grid Grid.Row="2" Padding="12,8">
+
+            <!-- People -->
+            <ScrollView x:Name="PeopleTab">
+                <VerticalStackLayout Spacing="8">
+                    <Border BackgroundColor="{StaticResource TileBg}" StrokeThickness="0" Padding="10"
+                            IsVisible="{Binding HasWaiting}">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Waiting room" FontAttributes="Bold" />
+                            <CollectionView ItemsSource="{Binding Waiting}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="dto:WaitingParticipantDto">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" Padding="0,3">
+                                            <Label Grid.Column="0" Text="{Binding DisplayName}" VerticalOptions="Center" />
+                                            <Button Grid.Column="1" Text="Admit" Padding="10,3" FontSize="12"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=AdmitCommand}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Grid.Column="2" Text="Deny" Style="{StaticResource Ghost}" Padding="10,3" FontSize="12"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=DenyCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Label Text="Participants" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding Participants}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ParticipantItem">
+                                <Border BackgroundColor="{StaticResource TileBg}" StrokeThickness="0" Padding="10" Margin="0,0,0,6">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="4">
+                                        <HorizontalStackLayout Spacing="6">
+                                            <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                                            <Label Text="host" TextColor="{StaticResource AccentBg}" IsVisible="{Binding IsHost}" />
+                                            <Label Text="🔇" IsVisible="{Binding IsMuted}" />
+                                        </HorizontalStackLayout>
+                                        <HorizontalStackLayout Spacing="4" IsVisible="{Binding IsSelf, Converter={StaticResource InvertBool}}">
+                                            <Button Text="Unmute?" Style="{StaticResource Ghost}" FontSize="11" Padding="8,3"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=AskToUnmuteCommand}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Text="Make host" Style="{StaticResource Ghost}" FontSize="11" Padding="8,3"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=TransferHostCommand}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Text="Remove" Style="{StaticResource Danger}" FontSize="11" Padding="8,3"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=RemoveParticipantCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </HorizontalStackLayout>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <Label Text="{Binding MyBreakoutRoom, StringFormat='You are in {0}'}" TextColor="{StaticResource AccentBg}"
+                           IsVisible="{Binding BreakoutsOpen}" />
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- Chat -->
+            <Grid x:Name="ChatTab" RowDefinitions="*,Auto" IsVisible="False">
+                <CollectionView Grid.Row="0" x:Name="ChatList" ItemsSource="{Binding ChatMessages}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ChatLine">
+                            <VerticalStackLayout Padding="0,3">
+                                <HorizontalStackLayout Spacing="6">
+                                    <Label Text="{Binding Sender}" FontAttributes="Bold" FontSize="12" />
+                                    <Label Text="(private)" TextColor="{StaticResource AccentBg}" FontSize="12" IsVisible="{Binding IsPrivate}" />
+                                    <Label Text="{Binding Time}" Style="{StaticResource Muted}" />
+                                </HorizontalStackLayout>
+                                <Label Text="{Binding Text}" />
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <VerticalStackLayout Grid.Row="1" Spacing="6" Padding="0,8,0,0">
+                    <Picker ItemsSource="{Binding ChatRecipients}" SelectedItem="{Binding SelectedRecipient}"
+                            ItemDisplayBinding="{Binding Label}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <Entry Grid.Column="0" Text="{Binding ChatText}" Placeholder="Type a message…" />
+                        <Button Grid.Column="1" Text="Send" Command="{Binding SendChatCommand}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Polls -->
+            <ScrollView x:Name="PollsTab" IsVisible="False">
+                <VerticalStackLayout Spacing="8">
+                    <VerticalStackLayout Spacing="6" IsVisible="{Binding HasActivePoll}">
+                        <Label Text="{Binding PollQuestion}" FontAttributes="Bold" />
+                        <CollectionView ItemsSource="{Binding PollOptions}">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PollOptionVm">
+                                    <Grid Padding="0,3" RowDefinitions="Auto,Auto">
+                                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                                            <Button Grid.Column="0" Text="{Binding Text}" Style="{StaticResource Ghost}"
+                                                    HorizontalOptions="Fill" HorizontalContentAlignment="Start"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=VoteCommand}"
+                                                    CommandParameter="{Binding}" />
+                                            <Label Grid.Column="1" Text="{Binding VotesLabel}" Style="{StaticResource Muted}" VerticalOptions="Center" Margin="8,0,0,0" />
+                                        </Grid>
+                                        <ProgressBar Grid.Row="1" Progress="{Binding Fraction}" ProgressColor="{StaticResource AccentBg}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <Label Text="{Binding PollTotalVotes, StringFormat='{0} total vote(s)'}" Style="{StaticResource Muted}" />
+                        <Label Text="Poll closed" TextColor="{StaticResource AccentBg}" IsVisible="{Binding PollIsClosed}" />
+                        <Button Text="Close poll" Style="{StaticResource Ghost}" HorizontalOptions="Start"
+                                Command="{Binding ClosePollCommand}" IsVisible="{Binding IsSelfHost}" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6" IsVisible="{Binding IsSelfHost}">
+                        <Label Text="Start a new poll" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding NewPollQuestion}" Placeholder="Question" />
+                        <Editor Text="{Binding NewPollOptions}" Placeholder="One option per line (2–10)" HeightRequest="90" />
+                        <Button Text="Start poll" HorizontalOptions="Start" Command="{Binding CreatePollCommand}" />
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- Files -->
+            <Grid x:Name="FilesTab" RowDefinitions="Auto,*" IsVisible="False">
+                <Button Grid.Row="0" Text="Share a file" HorizontalOptions="Start" Margin="0,0,0,8" Command="{Binding ShareFileCommand}" />
+                <CollectionView Grid.Row="1" ItemsSource="{Binding SharedFiles}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="dto:MeetingFileDto">
+                            <Border BackgroundColor="{StaticResource TileBg}" StrokeThickness="0" Padding="10" Margin="0,0,0,6">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Grid.Column="0">
+                                        <Label Text="{Binding FileName}" FontAttributes="Bold" />
+                                        <Label Text="{Binding SenderDisplayName}" Style="{StaticResource Muted}" />
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="1" Text="Save" Style="{StaticResource Ghost}"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=DownloadFileCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+
+            <!-- Board -->
+            <Grid x:Name="BoardTab" RowDefinitions="Auto,*" IsVisible="False">
+                <HorizontalStackLayout Grid.Row="0" Spacing="6" Margin="0,0,0,6">
+                    <Button BackgroundColor="#FFEDEDED" WidthRequest="28" HeightRequest="28" Text="" Clicked="OnPickColor" CommandParameter="#FFEDEDED" />
+                    <Button BackgroundColor="#FF2D8CFF" WidthRequest="28" HeightRequest="28" Text="" Clicked="OnPickColor" CommandParameter="#FF2D8CFF" />
+                    <Button BackgroundColor="#FFE02F44" WidthRequest="28" HeightRequest="28" Text="" Clicked="OnPickColor" CommandParameter="#FFE02F44" />
+                    <Button BackgroundColor="#FF7BE28B" WidthRequest="28" HeightRequest="28" Text="" Clicked="OnPickColor" CommandParameter="#FF7BE28B" />
+                    <Button BackgroundColor="#FFF2C94C" WidthRequest="28" HeightRequest="28" Text="" Clicked="OnPickColor" CommandParameter="#FFF2C94C" />
+                    <Button Text="Clear" Style="{StaticResource Ghost}" Command="{Binding ClearWhiteboardCommand}" />
+                </HorizontalStackLayout>
+                <GraphicsView Grid.Row="1" x:Name="Board"
+                              StartInteraction="OnBoardStart" DragInteraction="OnBoardDrag" EndInteraction="OnBoardEnd" />
+            </Grid>
+
+            <!-- Rooms -->
+            <ScrollView x:Name="RoomsTab" IsVisible="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding MyBreakoutRoom, StringFormat='Your room: {0}'}" FontAttributes="Bold" IsVisible="{Binding BreakoutsOpen}" />
+                    <VerticalStackLayout Spacing="8" IsVisible="{Binding IsSelfHost}">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label Text="Rooms:" VerticalOptions="Center" />
+                            <Entry Text="{Binding BreakoutRoomCount}" WidthRequest="60" Keyboard="Numeric" />
+                            <Button Text="Create" Style="{StaticResource Ghost}" Command="{Binding CreateBreakoutsCommand}" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="6" IsVisible="{Binding HasBreakouts}">
+                            <Button Text="Auto-assign" Style="{StaticResource Ghost}" Command="{Binding AutoAssignBreakoutsCommand}" />
+                            <Button Text="Open" Command="{Binding OpenBreakoutsCommand}" />
+                            <Button Text="Close" Style="{StaticResource Ghost}" Command="{Binding CloseBreakoutsCommand}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                    <CollectionView ItemsSource="{Binding BreakoutRooms}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="dto:BreakoutRoomDto">
+                                <Border BackgroundColor="{StaticResource TileBg}" StrokeThickness="0" Padding="10" Margin="0,0,0,6">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                                    <VerticalStackLayout>
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" />
+                                        <CollectionView ItemsSource="{Binding Members}">
+                                            <CollectionView.ItemTemplate>
+                                                <DataTemplate x:DataType="dto:WaitingParticipantDto">
+                                                    <Label Text="{Binding DisplayName}" Style="{StaticResource Muted}" />
+                                                </DataTemplate>
+                                            </CollectionView.ItemTemplate>
+                                        </CollectionView>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+
+        <!-- Reactions row -->
+        <ScrollView Grid.Row="3" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Padding="12,4">
+            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding ReactionEmojis}" Spacing="4">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Button Text="{Binding}" Style="{StaticResource Ghost}" FontSize="18" WidthRequest="48"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=SendReactionCommand}"
+                                CommandParameter="{Binding}" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Control bar -->
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Padding="12,8" BackgroundColor="{StaticResource PanelBg}">
+            <Button Grid.Column="0" Text="Mute all" Style="{StaticResource Ghost}" HorizontalOptions="Start"
+                    Command="{Binding MuteAllCommand}" IsVisible="{Binding IsSelfHost}" />
+            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                <Button Text="End for all" Style="{StaticResource Danger}" Command="{Binding EndForAllCommand}" IsVisible="{Binding IsSelfHost}" />
+                <Button Text="Leave" Style="{StaticResource Ghost}" Command="{Binding LeaveCommand}" />
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- Floating reactions overlay -->
+        <HorizontalStackLayout Grid.Row="2" BindableLayout.ItemsSource="{Binding Reactions}" Spacing="8"
+                               HorizontalOptions="Center" VerticalOptions="End" Margin="0,0,0,16" InputTransparent="True">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="vm:ReactionItem">
+                    <Label Text="{Binding Text}" FontSize="40" />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </HorizontalStackLayout>
+
+        <!-- Waiting-room overlay -->
+        <Grid Grid.RowSpan="5" BackgroundColor="#F21B1D22" IsVisible="{Binding IsWaiting}">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="12">
+                <Label Text="{Binding Title}" FontSize="22" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label Text="Waiting for the host to let you in…" Style="{StaticResource Muted}" HorizontalOptions="Center" />
+                <Button Text="Leave" Style="{StaticResource Ghost}" Command="{Binding LeaveCommand}" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

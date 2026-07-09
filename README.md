@@ -76,6 +76,35 @@ runs the Makefile from WSL using the Windows .NET SDK.
 
 The GUI apps share their view-models with the Windows WPF apps and also run on Windows.
 
+## Mobile (iOS + Android)
+
+`src/ZPlus.Mobile` is a **.NET MAUI** app targeting **iOS and Android** from one C# codebase.
+It reuses the same shared pieces as the Linux client — `ZPlus.Shared`, `MeetingHubClient`,
+`ApiClient`, and the `Login`/`Home`/`Meeting` view-models — so it has the same feature set:
+sign in / register (with **MFA**), start/join/schedule meetings, live roster, **E2EE chat**,
+**reactions, polls, file sharing, whiteboard, breakout rooms, and the waiting room**. Like the
+Linux client it is **roster + chat + features only** — camera/mic capture (WebRTC) is not wired
+up on mobile yet.
+
+Requires the .NET MAUI workload (`dotnet workload install maui`). Build:
+
+```
+# Android APK (needs the Android SDK + a JDK; Visual Studio installs both)
+dotnet build src/ZPlus.Mobile -c Release -f net10.0-android
+
+# iOS — must be built on macOS with Xcode (Apple requirement); on Windows it
+# compiles but cannot produce a signed .app/.ipa without a paired Mac.
+dotnet build src/ZPlus.Mobile -c Release -f net10.0-ios
+```
+
+If the Android SDK/JDK aren't auto-detected, pass them explicitly, e.g.
+`-p:AndroidSdkDirectory="C:\Program Files (x86)\Android\android-sdk"`
+`-p:JavaSdkDirectory="C:\Program Files\Android\openjdk\jdk-21.0.8"`.
+
+`http://` LAN servers are allowed (Android `usesCleartextTraffic`, iOS ATS override); for
+production use an `https://` server URL. On first launch, set the **Server** field to your Z+
+server's public URL, then sign in.
+
 ## Running it
 
 1. **Server** — run `Z+ Server.exe` (or `dotnet run --project src/ZPlus.Server`).

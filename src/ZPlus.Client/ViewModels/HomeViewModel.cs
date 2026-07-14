@@ -6,9 +6,41 @@ using ZPlus.Shared.Dtos;
 
 namespace ZPlus.Client.ViewModels;
 
+/// <summary>A recurrence choice shown in the schedule form (Label for display, Value sent to the server).</summary>
+public record RepeatOption(string Label, string Value);
+
+/// <summary>A reminder lead time: how long before each occurrence to email invitations.</summary>
+public record ReminderOption(string Label, int Minutes);
+
 public partial class HomeViewModel : ObservableObject
 {
     private readonly ApiClient _api = new();
+
+    private static readonly RepeatOption[] _repeatOptions =
+    [
+        new("Does not repeat", "None"),
+        new("Daily", "Daily"),
+        new("Weekly", "Weekly"),
+        new("Monthly", "Monthly"),
+    ];
+    private static readonly ReminderOption[] _reminderOptions =
+    [
+        new("Send invites now", 0),
+        new("15 minutes before", 15),
+        new("1 hour before", 60),
+        new("1 day before", 1440),
+        new("2 days before", 2880),
+        new("1 week before", 10080),
+    ];
+
+    public RepeatOption[] RepeatOptions => _repeatOptions;
+    public ReminderOption[] ReminderOptions => _reminderOptions;
+
+    public HomeViewModel()
+    {
+        _selectedRepeat = _repeatOptions[0];
+        _selectedReminder = _reminderOptions[0];
+    }
 
     [ObservableProperty] private string _joinCode = "";
     [ObservableProperty] private string _joinPassword = "";
@@ -19,6 +51,9 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty] private string _scheduleTime = "09:00";
     [ObservableProperty] private string _scheduleDuration = "60";
     [ObservableProperty] private bool _waitingRoomEnabled;
+    [ObservableProperty] private RepeatOption _selectedRepeat;
+    [ObservableProperty] private string _recurrenceCount = "4";
+    [ObservableProperty] private ReminderOption _selectedReminder;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
     [ObservableProperty] private string? _info;
@@ -97,13 +132,21 @@ public partial class HomeViewModel : ObservableObject
         {
             var startUtc = (ScheduleDate.Date + time).ToUniversalTime();
             var password = string.IsNullOrEmpty(SchedulePassword) ? null : SchedulePassword;
+            var pattern = SelectedRepeat?.Value ?? "None";
+            var count = int.TryParse(RecurrenceCount, out var rc) ? rc : 1;
+            var lead = SelectedReminder?.Minutes ?? 0;
             var created = await _api.CreateMeetingAsync(
                 new CreateMeetingRequest(ScheduleTopic.Trim(), password, startUtc, duration,
-                    invites.Count > 0 ? invites : null, WaitingRoomEnabled));
+                    invites.Count > 0 ? invites : null, WaitingRoomEnabled, pattern, count, lead));
 
-            Info = $"Scheduled \"{created.Meeting.Topic}\" — meeting ID {created.Meeting.MeetingCode}";
+            Info = $"Scheduled \"{created.Meeting.Topic}\"";
+            if (created.OccurrencesCreated > 1)
+                Info += $" — {created.OccurrencesCreated} occurrences";
+            Info += $" · meeting ID {created.Meeting.MeetingCode}";
             if (created.InvitesSent > 0)
                 Info += $" · {created.InvitesSent} invitation(s) emailed";
+            if (created.InvitesQueued > 0)
+                Info += $" · {created.InvitesQueued} reminder(s) scheduled";
             if (created.InviteFailures.Count > 0)
                 Error = $"Some invitations failed: {string.Join("; ", created.InviteFailures.Take(3))}";
 

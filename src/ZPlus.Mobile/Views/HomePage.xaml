@@ -62,6 +62,18 @@
                     <Entry Text="{Binding SchedulePassword}" IsPassword="True" />
                     <Label Text="Invite by email (comma-separated, optional)" Style="{StaticResource Muted}" />
                     <Entry Text="{Binding ScheduleInvites}" Keyboard="Email" />
+                    <Grid ColumnDefinitions="*,10,90" ColumnSpacing="0">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <Label Text="Repeat" Style="{StaticResource Muted}" />
+                            <Picker ItemsSource="{Binding RepeatOptions}" SelectedItem="{Binding SelectedRepeat}" ItemDisplayBinding="{Binding Label}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2" Spacing="2">
+                            <Label Text="Times" Style="{StaticResource Muted}" />
+                            <Entry Text="{Binding RecurrenceCount}" Keyboard="Numeric" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Label Text="Send invitations" Style="{StaticResource Muted}" />
+                    <Picker ItemsSource="{Binding ReminderOptions}" SelectedItem="{Binding SelectedReminder}" ItemDisplayBinding="{Binding Label}" />
                     <Button Text="Schedule" Command="{Binding ScheduleMeetingCommand}" />
                 </VerticalStackLayout>
             </Border>

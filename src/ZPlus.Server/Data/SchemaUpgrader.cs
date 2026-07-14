@@ -31,25 +31,40 @@ public static class SchemaUpgrader
             db.Database.CloseConnection();
         }
 
-        // EF's full CREATE script for the model; run only the statements whose object is absent.
+        // EF's full CREATE script for the model. Run in a safe order: create missing TABLES,
+        // then add missing COLUMNS to existing tables, then create missing INDEXES last — an
+        // index may reference a column that was only just added, so it must come after columns.
         var created = new List<string>();
+        var deferredIndexes = new List<(string Name, string Sql)>();
         foreach (var statement in db.Database.GenerateCreateScript()
                      .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var match = Regex.Match(statement, @"CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+""(?<name>[^""]+)""",
+            var match = Regex.Match(statement, @"CREATE\s+(?:UNIQUE\s+)?(?<kind>TABLE|INDEX)\s+""(?<name>[^""]+)""",
                 RegexOptions.IgnoreCase);
             if (!match.Success) continue;
 
             var name = match.Groups["name"].Value;
             if (existing.Contains(name)) continue;
 
+            if (match.Groups["kind"].Value.Equals("INDEX", StringComparison.OrdinalIgnoreCase))
+            {
+                deferredIndexes.Add((name, statement)); // create after columns exist
+                continue;
+            }
             db.Database.ExecuteSqlRaw(statement);
             created.Add(name);
         }
 
-        // Second pass: add columns the model gained on tables that already existed.
+        // Add columns the model gained on tables that already existed.
         // (EnsureCreated/GenerateCreateScript build whole tables but never ALTER them.)
         created.AddRange(AddMissingColumns(db, existing));
+
+        // Now the indexes — their columns are guaranteed to exist.
+        foreach (var (name, sql) in deferredIndexes)
+        {
+            db.Database.ExecuteSqlRaw(sql);
+            created.Add(name);
+        }
         return created;
     }
 

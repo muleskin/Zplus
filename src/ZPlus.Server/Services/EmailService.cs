@@ -28,7 +28,7 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
     }
 
     /// <summary>Sends one invitation. Returns null on success, or a short error description.</summary>
-    public async Task<string?> SendInviteAsync(Meeting meeting, string email, string? meetingPassword, string hostDisplayName)
+    public async Task<string?> SendInviteAsync(Meeting meeting, string email, string? meetingPassword, string hostDisplayName, bool isReminder = false)
     {
         var config = await settings.GetAsync();
         if (!await IsConfiguredAsync())
@@ -42,7 +42,9 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
               (meeting.DurationMinutes is int minutes ? $" ({minutes} minutes)" : "");
 
         var body = new StringBuilder();
-        body.AppendLine($"{hostDisplayName} has invited you to a Z+ meeting.");
+        body.AppendLine(isReminder
+            ? $"Reminder: {hostDisplayName} invited you to a Z+ meeting starting soon."
+            : $"{hostDisplayName} has invited you to a Z+ meeting.");
         body.AppendLine();
         body.AppendLine($"Topic:      {meeting.Topic}");
         body.AppendLine($"{when}");
@@ -66,7 +68,8 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
         }
 
         var secret = await ActiveSecretAsync(config);
-        var error = await SendAsync(config, secret, from, email, $"Z+ meeting invitation: {meeting.Topic}", body.ToString());
+        var subject = (isReminder ? "Reminder — Z+ meeting: " : "Z+ meeting invitation: ") + meeting.Topic;
+        var error = await SendAsync(config, secret, from, email, subject, body.ToString());
         if (error is not null)
             logger.LogWarning("Invite to {Email} for {Code} failed: {Error}", email, meeting.MeetingCode, error);
         return error;

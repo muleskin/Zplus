@@ -40,6 +40,8 @@ public class Meeting
     /// <summary>Null for instant meetings.</summary>
     public DateTime? ScheduledStartUtc { get; set; }
     public int? DurationMinutes { get; set; }
+    /// <summary>Groups occurrences of a recurring series (null for one-off meetings).</summary>
+    public Guid? SeriesId { get; set; }
     /// <summary>Null when the meeting has no password.</summary>
     public string? PasswordHash { get; set; }
     /// <summary>When true, non-host joiners wait for the host to admit them.</summary>
@@ -52,7 +54,7 @@ public class Meeting
     public List<ChatMessageRecord> ChatMessages { get; set; } = [];
 }
 
-/// <summary>An email invitation sent (or attempted) for a meeting.</summary>
+/// <summary>An email invitation for a meeting. May be queued as a timed reminder.</summary>
 public class MeetingInvitation
 {
     public long Id { get; set; }
@@ -62,6 +64,13 @@ public class MeetingInvitation
     public bool Sent { get; set; }
     public string? Error { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    /// <summary>When the background dispatcher should send this. Null = handled inline at creation.</summary>
+    public DateTime? SendAtUtc { get; set; }
+    /// <summary>The meeting password (AES+HMAC-encrypted) so a deferred reminder can include a join link.</summary>
+    public string? ProtectedPassword { get; set; }
+    /// <summary>True when this invite is a reminder for a scheduled occurrence (affects wording).</summary>
+    public bool IsReminder { get; set; }
+    public string? HostDisplayName { get; set; }
 }
 
 /// <summary>Historical attendance record (live roster is kept in memory).</summary>

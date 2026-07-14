@@ -6,13 +6,25 @@ public record CreateMeetingRequest(
     DateTime? ScheduledStartUtc,
     int? DurationMinutes,
     List<string>? InviteEmails = null,
-    bool WaitingRoomEnabled = false);
+    bool WaitingRoomEnabled = false,
+    // Recurrence: "None" | "Daily" | "Weekly" | "Monthly". Count includes the first occurrence.
+    string RecurrencePattern = "None",
+    int RecurrenceCount = 1,
+    // How many minutes before each occurrence to email invitations (0 = send immediately).
+    int ReminderLeadMinutes = 0);
 
-/// <summary>Result of creating a meeting, including the outcome of any email invitations.</summary>
+/// <summary>
+/// Result of creating a meeting (or a recurring series). <see cref="Meeting"/> is the first
+/// occurrence; <see cref="OccurrencesCreated"/> is how many meetings were created.
+/// <see cref="InvitesSent"/> counts invitations emailed immediately; the rest are queued as
+/// reminders and sent by the server at their scheduled time.
+/// </summary>
 public record CreateMeetingResponse(
     MeetingDto Meeting,
     int InvitesSent,
-    List<string> InviteFailures);
+    List<string> InviteFailures,
+    int OccurrencesCreated = 1,
+    int InvitesQueued = 0);
 
 public record JoinLookupRequest(string MeetingCode, string? Password);
 

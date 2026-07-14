@@ -132,6 +132,7 @@ builder.Services.AddSingleton<TotpService>();
 builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddHostedService<InviteDispatcherService>();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 

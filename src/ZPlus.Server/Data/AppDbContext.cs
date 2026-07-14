@@ -27,6 +27,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(m => m.HostUserId);
         modelBuilder.Entity<MeetingParticipantRecord>().HasIndex(p => p.MeetingId);
         modelBuilder.Entity<MeetingInvitation>().HasIndex(i => i.MeetingId);
+        modelBuilder.Entity<MeetingInvitation>().HasIndex(i => i.SendAtUtc);
         modelBuilder.Entity<ChatMessageRecord>().HasIndex(c => c.MeetingId);
         modelBuilder.Entity<Poll>().HasIndex(p => p.MeetingId);
         modelBuilder.Entity<PollVote>().HasIndex(v => new { v.PollId, v.UserId }).IsUnique();

@@ -88,6 +88,25 @@
                         <TextBox Text="{Binding SchedulePassword, UpdateSourceTrigger=PropertyChanged}"/>
                         <TextBlock Text="Invite by email (comma-separated, optional)" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
                         <TextBox Text="{Binding ScheduleInvites, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Repeat" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding RepeatOptions}" SelectedItem="{Binding SelectedRepeat}"
+                                          DisplayMemberPath="Label"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Occurrences" Foreground="{StaticResource MutedFg}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding RecurrenceCount, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Send invitations" Foreground="{StaticResource MutedFg}" Margin="0,10,0,4"/>
+                        <ComboBox ItemsSource="{Binding ReminderOptions}" SelectedItem="{Binding SelectedReminder}"
+                                  DisplayMemberPath="Label"/>
                         <Button Style="{StaticResource PrimaryButton}" Content="Schedule" Margin="0,14,0,0"
                                 Command="{Binding ScheduleMeetingCommand}"
                                 IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>

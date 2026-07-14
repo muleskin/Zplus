@@ -67,60 +67,61 @@ public class MeetingsController(
             occurrences = Math.Clamp(request.RecurrenceCount, 1, MaxOccurrences);
         }
         int lead = Math.Max(0, request.ReminderLeadMinutes);
-        var seriesId = pattern == "None" ? (Guid?)null : Guid.NewGuid();
 
         var host = await db.Users.FindAsync(CurrentUserId);
         if (host is null || host.IsDisabled) return Unauthorized();
 
-        // The plaintext meeting password, encrypted so a deferred reminder can build a join link.
-        var protectedPw = string.IsNullOrEmpty(request.Password) ? null : protector.Protect(request.Password);
         var now = DateTime.UtcNow;
 
-        Meeting? first = null;
+        // A recurring series' ID auto-expires just after its last occurrence (start + duration,
+        // plus a 2-hour grace for meetings that run long). One-off meetings never auto-expire.
+        DateTime? expiresAt = null;
+        if (pattern != "None" && request.ScheduledStartUtc is not null)
+        {
+            var lastStart = StepOccurrence(request.ScheduledStartUtc.Value, pattern, occurrences - 1);
+            var durationMin = request.DurationMinutes is int dm && dm > 0 ? dm : 60;
+            expiresAt = lastStart.AddMinutes(durationMin).AddHours(2);
+        }
+
+        // One meeting carries the whole series — the same join ID is reused for every occurrence.
+        var meeting = new Meeting
+        {
+            Topic = request.Topic.Trim(),
+            HostUserId = host.Id,
+            ScheduledStartUtc = request.ScheduledStartUtc,
+            DurationMinutes = request.DurationMinutes,
+            WaitingRoomEnabled = request.WaitingRoomEnabled,
+            RecurrencePattern = pattern,
+            RecurrenceCount = occurrences,
+            ExpiresAtUtc = expiresAt,
+            // Instant meetings (no scheduled start) are live immediately.
+            IsActive = request.ScheduledStartUtc is null,
+        };
+        if (!string.IsNullOrEmpty(request.Password))
+            meeting.PasswordHash = passwords.Protect(request.Password);
+
+        // Retry on the (astronomically unlikely) chance of a code collision.
+        for (int attempt = 0; ; attempt++)
+        {
+            meeting.MeetingCode = MeetingCodeGenerator.NewCode();
+            if (!await db.Meetings.AnyAsync(m => m.MeetingCode == meeting.MeetingCode)) break;
+            if (attempt == 5) return StatusCode(500, "Could not allocate a meeting code.");
+        }
+        db.Meetings.Add(meeting);
+        await db.SaveChangesAsync();
+
+        // The plaintext meeting password, encrypted so a deferred reminder can build a join link.
+        var protectedPw = string.IsNullOrEmpty(request.Password) ? null : protector.Protect(request.Password);
         int sent = 0, queued = 0;
         var failures = new List<string>();
 
-        for (int i = 0; i < occurrences; i++)
+        if (inviteEmails.Count > 0)
         {
-            var occStart = request.ScheduledStartUtc is null
-                ? (DateTime?)null
-                : StepOccurrence(request.ScheduledStartUtc.Value, pattern, i);
-
-            var meeting = new Meeting
+            if (lead <= 0)
             {
-                Topic = request.Topic.Trim(),
-                HostUserId = host.Id,
-                ScheduledStartUtc = occStart,
-                DurationMinutes = request.DurationMinutes,
-                WaitingRoomEnabled = request.WaitingRoomEnabled,
-                SeriesId = seriesId,
-                // Instant meetings (no scheduled start) are live immediately.
-                IsActive = occStart is null,
-            };
-            if (!string.IsNullOrEmpty(request.Password))
-                meeting.PasswordHash = passwords.Protect(request.Password);
-
-            // Retry on the (astronomically unlikely) chance of a code collision.
-            for (int attempt = 0; ; attempt++)
-            {
-                meeting.MeetingCode = MeetingCodeGenerator.NewCode();
-                if (!await db.Meetings.AnyAsync(m => m.MeetingCode == meeting.MeetingCode)) break;
-                if (attempt == 5) return StatusCode(500, "Could not allocate a meeting code.");
-            }
-
-            db.Meetings.Add(meeting);
-            await db.SaveChangesAsync();
-            first ??= meeting;
-
-            // When to email invitations for this occurrence: a reminder lead time before the
-            // start, or immediately when there is no lead / no scheduled start.
-            var sendAt = (lead <= 0 || occStart is null) ? now : occStart.Value.AddMinutes(-lead);
-
-            foreach (var address in inviteEmails)
-            {
-                if (sendAt <= now)
+                // Send one invitation now per invitee (it notes the recurrence, if any).
+                foreach (var address in inviteEmails)
                 {
-                    // Due now — send inline (best effort) and record the attempt.
                     var error = await email.SendInviteAsync(meeting, address, request.Password, host.DisplayName);
                     db.MeetingInvitations.Add(new MeetingInvitation
                     {
@@ -130,22 +131,48 @@ public class MeetingsController(
                     if (error is null) sent++;
                     else failures.Add($"{address}: {error}");
                 }
-                else
+            }
+            else
+            {
+                // Queue a reminder a lead time before each occurrence (send inline if already due).
+                for (int i = 0; i < occurrences; i++)
                 {
-                    // Queue a reminder for the background dispatcher to send at SendAtUtc.
-                    db.MeetingInvitations.Add(new MeetingInvitation
+                    var occStart = request.ScheduledStartUtc is null
+                        ? (DateTime?)null
+                        : StepOccurrence(request.ScheduledStartUtc.Value, pattern, i);
+                    var sendAt = occStart is null ? now : occStart.Value.AddMinutes(-lead);
+
+                    foreach (var address in inviteEmails)
                     {
-                        MeetingId = meeting.Id, Email = address, InvitedByUserId = host.Id,
-                        Sent = false, SendAtUtc = sendAt, ProtectedPassword = protectedPw,
-                        IsReminder = true, HostDisplayName = host.DisplayName,
-                    });
-                    queued++;
+                        if (sendAt <= now)
+                        {
+                            var error = await email.SendInviteAsync(meeting, address, request.Password,
+                                host.DisplayName, isReminder: true, occurrenceStartUtc: occStart);
+                            db.MeetingInvitations.Add(new MeetingInvitation
+                            {
+                                MeetingId = meeting.Id, Email = address, InvitedByUserId = host.Id,
+                                Sent = error is null, Error = error, IsReminder = true, OccurrenceStartUtc = occStart,
+                            });
+                            if (error is null) sent++;
+                            else failures.Add($"{address}: {error}");
+                        }
+                        else
+                        {
+                            db.MeetingInvitations.Add(new MeetingInvitation
+                            {
+                                MeetingId = meeting.Id, Email = address, InvitedByUserId = host.Id,
+                                Sent = false, SendAtUtc = sendAt, ProtectedPassword = protectedPw,
+                                IsReminder = true, HostDisplayName = host.DisplayName, OccurrenceStartUtc = occStart,
+                            });
+                            queued++;
+                        }
+                    }
                 }
             }
+            await db.SaveChangesAsync();
         }
-        if (inviteEmails.Count > 0) await db.SaveChangesAsync();
 
-        return Ok(new CreateMeetingResponse(ToDto(first!, host.DisplayName), sent, failures, occurrences, queued));
+        return Ok(new CreateMeetingResponse(ToDto(meeting, host.DisplayName), sent, failures, occurrences, queued));
     }
 
     /// <summary>Looks up a meeting by its code and validates the password, without joining it.</summary>
@@ -156,7 +183,7 @@ public class MeetingsController(
         var meeting = await db.Meetings.Include(m => m.Host)
             .SingleOrDefaultAsync(m => m.MeetingCode == code);
         if (meeting is null) return NotFound("No meeting found with that ID.");
-        if (meeting.EndedAtUtc is not null) return Conflict("That meeting has already ended.");
+        if (meeting.HasExpired(DateTime.UtcNow)) return Conflict("That meeting has already ended.");
 
         if (meeting.PasswordHash is not null)
         {
@@ -173,8 +200,10 @@ public class MeetingsController(
     public async Task<ActionResult<List<MeetingDto>>> Mine()
     {
         var userId = CurrentUserId;
+        var now = DateTime.UtcNow;
         var meetings = await db.Meetings.Include(m => m.Host)
-            .Where(m => m.HostUserId == userId && m.EndedAtUtc == null)
+            .Where(m => m.HostUserId == userId && m.EndedAtUtc == null
+                && (m.ExpiresAtUtc == null || m.ExpiresAtUtc > now))
             .OrderByDescending(m => m.CreatedAtUtc)
             .Take(50)
             .ToListAsync();

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace ZPlus.Server.Models;
 
 public class User
@@ -40,8 +42,23 @@ public class Meeting
     /// <summary>Null for instant meetings.</summary>
     public DateTime? ScheduledStartUtc { get; set; }
     public int? DurationMinutes { get; set; }
-    /// <summary>Groups occurrences of a recurring series (null for one-off meetings).</summary>
+    /// <summary>Groups occurrences of a recurring series (legacy; a series is now one meeting).</summary>
     public Guid? SeriesId { get; set; }
+    /// <summary>Recurrence for this meeting: "None" | "Daily" | "Weekly" | "Monthly". The same
+    /// meeting ID is reused for every occurrence (ending one occurrence does not end the series).</summary>
+    public string RecurrencePattern { get; set; } = "None";
+    /// <summary>Number of occurrences in the series (1 for a one-off).</summary>
+    public int RecurrenceCount { get; set; } = 1;
+    /// <summary>When a recurring meeting's ID stops working (just after its last occurrence).
+    /// Null for one-off meetings, which never auto-expire.</summary>
+    public DateTime? ExpiresAtUtc { get; set; }
+
+    [NotMapped]
+    public bool IsRecurring => RecurrencePattern != "None";
+
+    /// <summary>True once the meeting is over: explicitly ended, or past a recurring series' expiry.</summary>
+    public bool HasExpired(DateTime nowUtc) =>
+        EndedAtUtc is not null || (ExpiresAtUtc is not null && ExpiresAtUtc <= nowUtc);
     /// <summary>Null when the meeting has no password.</summary>
     public string? PasswordHash { get; set; }
     /// <summary>When true, non-host joiners wait for the host to admit them.</summary>
@@ -71,6 +88,8 @@ public class MeetingInvitation
     /// <summary>True when this invite is a reminder for a scheduled occurrence (affects wording).</summary>
     public bool IsReminder { get; set; }
     public string? HostDisplayName { get; set; }
+    /// <summary>The specific occurrence this reminder is for, so its email shows the right date.</summary>
+    public DateTime? OccurrenceStartUtc { get; set; }
 }
 
 /// <summary>Historical attendance record (live roster is kept in memory).</summary>

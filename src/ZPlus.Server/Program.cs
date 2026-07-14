@@ -198,8 +198,10 @@ app.MapGet("/join/{code}", async (string code, string? pw, AppDbContext db, Sett
 {
     var digits = new string(code.Where(char.IsDigit).ToArray());
     string normalized = digits.Length == 9 ? $"{digits[..3]}-{digits[3..6]}-{digits[6..]}" : code.Trim();
+    var nowUtc = DateTime.UtcNow;
     var meeting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-        .SingleOrDefaultAsync(db.Meetings, m => m.MeetingCode == normalized && m.EndedAtUtc == null);
+        .SingleOrDefaultAsync(db.Meetings, m => m.MeetingCode == normalized && m.EndedAtUtc == null
+            && (m.ExpiresAtUtc == null || m.ExpiresAtUtc > nowUtc));
 
     string inner;
     if (meeting is null)

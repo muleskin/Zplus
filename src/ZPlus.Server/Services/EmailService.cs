@@ -28,7 +28,8 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
     }
 
     /// <summary>Sends one invitation. Returns null on success, or a short error description.</summary>
-    public async Task<string?> SendInviteAsync(Meeting meeting, string email, string? meetingPassword, string hostDisplayName, bool isReminder = false)
+    public async Task<string?> SendInviteAsync(Meeting meeting, string email, string? meetingPassword, string hostDisplayName,
+        bool isReminder = false, DateTime? occurrenceStartUtc = null)
     {
         var config = await settings.GetAsync();
         if (!await IsConfiguredAsync())
@@ -36,9 +37,11 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
 
         var from = FromAddress(config);
 
-        string when = meeting.ScheduledStartUtc is null
+        // For a recurring reminder, show this occurrence's date rather than the series' first date.
+        var startUtc = occurrenceStartUtc ?? meeting.ScheduledStartUtc;
+        string when = startUtc is null
             ? "The meeting is running now."
-            : $"When: {meeting.ScheduledStartUtc.Value:dddd, MMMM d yyyy HH:mm} UTC" +
+            : $"When: {startUtc.Value:dddd, MMMM d yyyy HH:mm} UTC" +
               (meeting.DurationMinutes is int minutes ? $" ({minutes} minutes)" : "");
 
         var body = new StringBuilder();
@@ -48,6 +51,8 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
         body.AppendLine();
         body.AppendLine($"Topic:      {meeting.Topic}");
         body.AppendLine($"{when}");
+        if (meeting.IsRecurring)
+            body.AppendLine($"Repeats:    {meeting.RecurrencePattern}, {meeting.RecurrenceCount} occurrences (same meeting ID each time)");
         body.AppendLine($"Meeting ID: {meeting.MeetingCode}");
         if (!string.IsNullOrEmpty(meetingPassword))
             body.AppendLine($"Password:   {meetingPassword}");

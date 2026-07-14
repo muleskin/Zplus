@@ -45,9 +45,9 @@ public class InviteDispatcherService(
         foreach (var inv in due)
         {
             var meeting = await db.Meetings.FirstOrDefaultAsync(m => m.Id == inv.MeetingId, ct);
-            if (meeting is null || meeting.EndedAtUtc is not null)
+            if (meeting is null || meeting.HasExpired(now))
             {
-                // Meeting gone or already ended — mark handled so it isn't retried forever.
+                // Meeting gone or already ended/expired — mark handled so it isn't retried forever.
                 inv.Sent = true;
                 inv.Error = "Meeting no longer available.";
                 inv.SendAtUtc = null;
@@ -57,7 +57,7 @@ public class InviteDispatcherService(
 
             var password = string.IsNullOrEmpty(inv.ProtectedPassword) ? null : protector.Unprotect(inv.ProtectedPassword);
             var error = await email.SendInviteAsync(meeting, inv.Email, password,
-                inv.HostDisplayName ?? "Your host", isReminder: inv.IsReminder);
+                inv.HostDisplayName ?? "Your host", isReminder: inv.IsReminder, occurrenceStartUtc: inv.OccurrenceStartUtc);
 
             inv.Error = error;
             if (error is null)

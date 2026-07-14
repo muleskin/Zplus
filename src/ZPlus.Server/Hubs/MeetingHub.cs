@@ -32,7 +32,7 @@ public class MeetingHub(
             .SingleOrDefaultAsync(m => m.MeetingCode == code)
             ?? throw new HubException("No meeting found with that ID.");
 
-        if (meeting.EndedAtUtc is not null)
+        if (meeting.HasExpired(DateTime.UtcNow))
             throw new HubException("That meeting has already ended.");
 
         var account = await db.Users.FindAsync(CurrentUserId);
@@ -334,7 +334,10 @@ public class MeetingHub(
         if (meeting is not null)
         {
             meeting.IsActive = false;
-            meeting.EndedAtUtc = DateTime.UtcNow;
+            // A recurring meeting keeps its ID for the next occurrence, so ending one occurrence
+            // must NOT permanently end the series (leave EndedAtUtc null). One-off meetings end.
+            if (!meeting.IsRecurring)
+                meeting.EndedAtUtc = DateTime.UtcNow;
             var openRecords = await db.MeetingParticipants
                 .Where(p => p.MeetingId == live.MeetingId && p.LeftAtUtc == null)
                 .ToListAsync();

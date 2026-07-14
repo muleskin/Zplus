@@ -50,6 +50,24 @@ public partial class MeetingViewModel : ObservableObject
     [ObservableProperty] private ChatRecipientOption? _selectedRecipient;
     [ObservableProperty] private string? _statusMessage;
 
+    // Chat notification (unread badge on the Chat tab)
+    [ObservableProperty] private int _unreadChat;
+    private bool _chatTabActive;
+    private bool _chatReady;   // suppress notifications while replaying history on join
+
+    public string ChatTabHeader => UnreadChat > 0 ? $"Chat ({UnreadChat})" : "Chat";
+    partial void OnUnreadChatChanged(int value) => OnPropertyChanged(nameof(ChatTabHeader));
+
+    /// <summary>Raised when a message arrives while the user isn't viewing the Chat tab.</summary>
+    public event Action? ChatArrivedWhileAway;
+
+    /// <summary>Called by the view when the Chat tab is shown/hidden; clears the unread badge.</summary>
+    public void SetChatTabActive(bool active)
+    {
+        _chatTabActive = active;
+        if (active && UnreadChat != 0) UnreadChat = 0;
+    }
+
     // Waiting room
     [ObservableProperty] private bool _isWaiting;
     [ObservableProperty] private bool _hasWaiting;
@@ -203,6 +221,7 @@ public partial class MeetingViewModel : ObservableObject
         {
             HandleChatReceived(message);
         }
+        _chatReady = true;   // subsequent messages are live — notify when the user is away from Chat
 
         // Start local media, then offer to everyone already in the room (mesh convention:
         // the newcomer always initiates).
@@ -295,6 +314,7 @@ public partial class MeetingViewModel : ObservableObject
         if (_e2ee.TryDecrypt(message.Text, out var plaintext))
         {
             ChatMessages.Add(message with { Text = plaintext });
+            NotifyChat(message);
         }
         else if (MeetingE2ee.IsEncrypted(message.Text))
         {
@@ -305,7 +325,17 @@ public partial class MeetingViewModel : ObservableObject
         else
         {
             ChatMessages.Add(message);
+            NotifyChat(message);
         }
+    }
+
+    /// <summary>Flags an unread chat message unless it's ours, we're on the Chat tab, or it's history.</summary>
+    private void NotifyChat(ChatMessageDto message)
+    {
+        if (!_chatReady || _chatTabActive || message.SenderUserId == _selfUserId) return;
+        UnreadChat++;
+        StatusMessage = $"💬 New message from {message.SenderDisplayName}";
+        ChatArrivedWhileAway?.Invoke();
     }
 
     private void ApplyForcedMute()

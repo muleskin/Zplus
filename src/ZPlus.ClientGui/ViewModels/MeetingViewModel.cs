@@ -72,6 +72,24 @@ public partial class MeetingViewModel : ObservableObject
     [ObservableProperty] private ChatRecipientOption? _selectedRecipient;
     [ObservableProperty] private string? _statusMessage;
 
+    // Chat notification (unread badge on the Chat tab)
+    [ObservableProperty] private int _unreadChat;
+    private bool _chatTabActive;
+    private bool _chatReady;   // suppress notifications while replaying history on join
+
+    public string ChatTabHeader => UnreadChat > 0 ? $"Chat ({UnreadChat})" : "Chat";
+    partial void OnUnreadChatChanged(int value) => OnPropertyChanged(nameof(ChatTabHeader));
+
+    /// <summary>Raised when a message arrives while the user isn't viewing the Chat tab.</summary>
+    public event Action? ChatArrivedWhileAway;
+
+    /// <summary>Called by the view when the Chat tab is shown/hidden; clears the unread badge.</summary>
+    public void SetChatTabActive(bool active)
+    {
+        _chatTabActive = active;
+        if (active && UnreadChat != 0) UnreadChat = 0;
+    }
+
     // Waiting room
     [ObservableProperty] private bool _isWaiting;
     [ObservableProperty] private bool _hasWaiting;
@@ -200,6 +218,7 @@ public partial class MeetingViewModel : ObservableObject
         }
 
         foreach (var message in snapshot.RecentChat) HandleChat(message);
+        _chatReady = true;   // subsequent messages are live — notify when the user is away from Chat
     }
 
     // ---- hub events ---------------------------------------------------------
@@ -259,15 +278,30 @@ public partial class MeetingViewModel : ObservableObject
     private void HandleChat(ChatMessageDto message)
     {
         if (_e2ee.TryDecrypt(message.Text, out var plaintext))
+        {
             ChatMessages.Add(new ChatLine(message.SenderDisplayName, plaintext, message.IsPrivate,
                 message.SentAtUtc.ToLocalTime().ToString("t")));
+            NotifyChat(message);
+        }
         else if (MeetingE2ee.IsEncrypted(message.Text))
         {
             if (!_e2ee.HasKey) _pendingEncrypted.Add(message);
         }
         else
+        {
             ChatMessages.Add(new ChatLine(message.SenderDisplayName, message.Text, message.IsPrivate,
                 message.SentAtUtc.ToLocalTime().ToString("t")));
+            NotifyChat(message);
+        }
+    }
+
+    /// <summary>Flags an unread chat message unless it's ours, we're on the Chat tab, or it's history.</summary>
+    private void NotifyChat(ChatMessageDto message)
+    {
+        if (!_chatReady || _chatTabActive || message.SenderUserId == _selfUserId) return;
+        UnreadChat++;
+        StatusMessage = $"💬 New message from {message.SenderDisplayName}";
+        ChatArrivedWhileAway?.Invoke();
     }
 
     // ---- commands -------------------------------------------------------------

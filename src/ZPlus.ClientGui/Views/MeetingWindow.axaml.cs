@@ -62,6 +62,13 @@ public partial class MeetingWindow : Window
     private void OnChatChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         this.FindControl<ScrollViewer>("ChatScroll")?.ScrollToEnd();
 
+    private void OnSidePanelTabChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        // Only react to the tab strip itself, not inner ComboBox/list selection changes.
+        if (!ReferenceEquals(e.Source, SidePanelTabs)) return;
+        _viewModel.SetChatTabActive(ReferenceEquals(SidePanelTabs.SelectedItem, ChatTab));
+    }
+
     private void OnChatKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter && _viewModel.SendChatCommand.CanExecute(null))

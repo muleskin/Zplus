@@ -23,7 +23,7 @@
         <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Padding="12,0">
             <HorizontalStackLayout Spacing="6">
                 <Button Text="People" Style="{StaticResource Ghost}" Clicked="OnTabPeople" />
-                <Button Text="Chat" Style="{StaticResource Ghost}" Clicked="OnTabChat" />
+                <Button Text="{Binding ChatTabHeader}" Style="{StaticResource Ghost}" Clicked="OnTabChat" />
                 <Button Text="Polls" Style="{StaticResource Ghost}" Clicked="OnTabPolls" />
                 <Button Text="Files" Style="{StaticResource Ghost}" Clicked="OnTabFiles" />
                 <Button Text="Board" Style="{StaticResource Ghost}" Clicked="OnTabBoard" />
@@ -234,7 +234,8 @@
             <HorizontalStackLayout BindableLayout.ItemsSource="{Binding ReactionEmojis}" Spacing="4">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
-                        <Button Text="{Binding}" Style="{StaticResource Ghost}" FontSize="18" WidthRequest="48"
+                        <Button Text="{Binding}" Style="{StaticResource Ghost}" FontSize="22" Padding="0"
+                                WidthRequest="52" HeightRequest="46"
                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MeetingViewModel}}, Path=SendReactionCommand}"
                                 CommandParameter="{Binding}" />
                     </DataTemplate>

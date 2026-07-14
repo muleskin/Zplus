@@ -1,6 +1,10 @@
 using System.Collections.Specialized;
+using System.Media;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using ZPlus.Client.ViewModels;
@@ -12,6 +16,10 @@ public partial class MeetingWindow : Window
 {
     private readonly MeetingViewModel _viewModel;
     private bool _exiting;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FLASHWINFO { public uint cbSize; public IntPtr hwnd; public uint dwFlags; public uint uCount; public uint dwTimeout; }
+    [DllImport("user32.dll")] private static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
 
     // Whiteboard state
     private readonly List<WhiteboardStrokeDto> _boardStrokes = [];
@@ -39,6 +47,7 @@ public partial class MeetingWindow : Window
 
         _viewModel.WhiteboardStrokeReceived += s => Dispatcher.Invoke(() => { _boardStrokes.Add(s); RedrawBoard(); });
         _viewModel.WhiteboardCleared += () => Dispatcher.Invoke(() => { _boardStrokes.Clear(); Whiteboard.Children.Clear(); });
+        _viewModel.ChatArrivedWhileAway += () => Dispatcher.Invoke(OnChatArrived);
 
         _viewModel.MeetingExited += reason =>
         {
@@ -94,6 +103,33 @@ public partial class MeetingWindow : Window
         if (e.Key == Key.Enter && _viewModel.SendChatCommand.CanExecute(null))
         {
             _viewModel.SendChatCommand.Execute(null);
+        }
+    }
+
+    // ---- Chat notification --------------------------------------------------
+
+    private void OnSidePanelTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // SelectionChanged bubbles from inner ComboBoxes/lists — only react to the tab strip.
+        if (!ReferenceEquals(e.OriginalSource, SidePanelTabs)) return;
+        _viewModel.SetChatTabActive(ReferenceEquals(SidePanelTabs.SelectedItem, ChatTab));
+    }
+
+    private void OnChatArrived()
+    {
+        try { SystemSounds.Asterisk.Play(); } catch { /* no audio device */ }
+        // If the meeting window isn't the foreground window, flash its taskbar button.
+        if (!IsActive)
+        {
+            var info = new FLASHWINFO
+            {
+                cbSize = (uint)Marshal.SizeOf<FLASHWINFO>(),
+                hwnd = new WindowInteropHelper(this).Handle,
+                dwFlags = 0x3 /* FLASHW_ALL */ | 0xC /* FLASHW_TIMERNOFG */,
+                uCount = uint.MaxValue,
+                dwTimeout = 0,
+            };
+            try { FlashWindowEx(ref info); } catch { /* best effort */ }
         }
     }
 

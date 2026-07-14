@@ -83,10 +83,29 @@ public class ApiClient
     private static async Task ThrowIfFailedAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return;
-        var detail = await response.Content.ReadAsStringAsync();
-        // Model-validation failures come back as JSON problem details; plain rejections as text.
-        throw new ApiException(string.IsNullOrWhiteSpace(detail)
-            ? $"Request failed ({(int)response.StatusCode})."
-            : detail.Trim('"'));
+        throw new ApiException(await FriendlyErrorAsync(response));
+    }
+
+    /// <summary>
+    /// Turns a failed HTTP response into a short message. Z+ returns brief text; anything else
+    /// (an HTML error page, a proxy/portal, the wrong service) means the Server address isn't a
+    /// Z+ server — so we say that instead of dumping the whole page into the UI.
+    /// </summary>
+    internal static async Task<string> FriendlyErrorAsync(HttpResponseMessage response)
+    {
+        var detail = (await response.Content.ReadAsStringAsync()).Trim();
+        var code = (int)response.StatusCode;
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        bool looksHtml = mediaType == "text/html"
+            || detail.StartsWith("<", StringComparison.Ordinal)
+            || detail.Contains("<html", StringComparison.OrdinalIgnoreCase)
+            || detail.Contains("<!doctype", StringComparison.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(detail))
+            return $"Request failed (HTTP {code}).";
+        if (looksHtml || detail.Length > 300)
+            return $"The server returned an unexpected response (HTTP {code}). Check that the " +
+                   "Server address points directly at your Z+ server, e.g. http://your-host:5199.";
+        return detail.Trim('"');
     }
 }

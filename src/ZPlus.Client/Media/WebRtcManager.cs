@@ -64,6 +64,12 @@ public class WebRtcManager : IAsyncDisposable
         _cameraSource.OnVideoSourceRawSample += (duration, width, height, sample, pixelFormat) =>
             LocalVideoFrame?.Invoke(new VideoFrame(sample, width, height, pixelFormat));
         await _cameraSource.StartVideo();
+        // Begin encoding immediately. Without a source format set, the endpoint only emits raw
+        // samples (self-view) and never the encoded samples we fan out to peers — so a peer that
+        // negotiates late (or whose OnVideoFormatsNegotiated is missed) would receive no video.
+        var formats = _cameraSource.GetVideoSourceFormats();
+        if (formats.Count > 0)
+            _cameraSource.SetVideoSourceFormat(formats[0]);
         _cameraStarted = true;
     }
 
@@ -209,6 +215,9 @@ public class WebRtcManager : IAsyncDisposable
             if (state == RTCPeerConnectionState.connected)
             {
                 _ = peer.SpeakerSink?.StartAudioSink();
+                // Push a keyframe so the new peer's decoder can render video immediately rather
+                // than waiting for the encoder's next periodic keyframe.
+                try { _cameraSource?.ForceKeyFrame(); } catch { /* not fatal */ }
             }
             else if (state is RTCPeerConnectionState.failed or RTCPeerConnectionState.closed)
             {

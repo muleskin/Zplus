@@ -108,9 +108,22 @@ public class AdminApiClient
     private static async Task ThrowIfFailedAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return;
-        var detail = await response.Content.ReadAsStringAsync();
-        throw new ApiException(string.IsNullOrWhiteSpace(detail)
-            ? $"Request failed ({(int)response.StatusCode})."
-            : detail.Trim('"'));
+        var detail = (await response.Content.ReadAsStringAsync()).Trim();
+        var code = (int)response.StatusCode;
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        bool looksHtml = mediaType == "text/html"
+            || detail.StartsWith("<", StringComparison.Ordinal)
+            || detail.Contains("<html", StringComparison.OrdinalIgnoreCase)
+            || detail.Contains("<!doctype", StringComparison.OrdinalIgnoreCase);
+
+        string message;
+        if (string.IsNullOrWhiteSpace(detail))
+            message = $"Request failed (HTTP {code}).";
+        else if (looksHtml || detail.Length > 300)
+            message = $"The server returned an unexpected response (HTTP {code}). Check that the " +
+                      "Server address points directly at your Z+ server, e.g. http://your-host:5199.";
+        else
+            message = detail.Trim('"');
+        throw new ApiException(message);
     }
 }

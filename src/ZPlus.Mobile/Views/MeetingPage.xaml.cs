@@ -90,6 +90,7 @@ public partial class MeetingPage : ContentPage
         FilesTab.IsVisible = ReferenceEquals(tab, FilesTab);
         BoardTab.IsVisible = ReferenceEquals(tab, BoardTab);
         RoomsTab.IsVisible = ReferenceEquals(tab, RoomsTab);
+        _viewModel.SetChatTabActive(ReferenceEquals(tab, ChatTab));
     }
 
     // ---- Whiteboard ---------------------------------------------------------

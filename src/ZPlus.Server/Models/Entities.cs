@@ -52,6 +52,11 @@ public class Meeting
     /// <summary>When a recurring meeting's ID stops working (just after its last occurrence).
     /// Null for one-off meetings, which never auto-expire.</summary>
     public DateTime? ExpiresAtUtc { get; set; }
+    /// <summary>The time zone the host scheduled in, so invitations can show their local time
+    /// alongside UTC. Null/unknown falls back to UTC only.</summary>
+    public string? HostTimeZoneId { get; set; }
+    /// <summary>True when the host schedules in 24-hour time (affects how invitations read).</summary>
+    public bool Use24HourTime { get; set; }
 
     [NotMapped]
     public bool IsRecurring => RecurrencePattern != "None";

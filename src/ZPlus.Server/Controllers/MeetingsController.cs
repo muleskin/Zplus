@@ -94,6 +94,8 @@ public class MeetingsController(
             RecurrencePattern = pattern,
             RecurrenceCount = occurrences,
             ExpiresAtUtc = expiresAt,
+            HostTimeZoneId = string.IsNullOrWhiteSpace(request.HostTimeZoneId) ? null : request.HostTimeZoneId.Trim(),
+            Use24HourTime = request.Use24HourTime,
             // Instant meetings (no scheduled start) are live immediately.
             IsActive = request.ScheduledStartUtc is null,
         };

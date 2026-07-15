@@ -212,11 +212,25 @@ app.MapGet("/join/{code}", async (string code, string? pw, AppDbContext db, Sett
     {
         var serverUrl = (await settings.GetAsync()).PublicUrl;
         var deepLink = ZPlus.Shared.ZplusLink.BuildJoin(serverUrl, meeting.MeetingCode, pw);
+
+        // Show the host's local time plus UTC, so any region can read it unambiguously.
+        string whenHtml;
+        if (meeting.ScheduledStartUtc is null)
+        {
+            whenHtml = "This meeting is available now.";
+        }
+        else
+        {
+            var w = ZPlus.Server.Services.MeetingTimeFormatter.Describe(
+                meeting.ScheduledStartUtc.Value, meeting.HostTimeZoneId, meeting.Use24HourTime);
+            whenHtml = $"Scheduled for {System.Net.WebUtility.HtmlEncode(w.Primary)}";
+            if (w.Utc is not null)
+                whenHtml += $"<br/><span class=\"hint\">{System.Net.WebUtility.HtmlEncode(w.Utc)}</span>";
+        }
+
         inner = $"""
            <h2>{System.Net.WebUtility.HtmlEncode(meeting.Topic)}</h2>
-           <p>{(meeting.ScheduledStartUtc is null
-                 ? "This meeting is available now."
-                 : $"Scheduled for {meeting.ScheduledStartUtc.Value:dddd, MMMM d yyyy HH:mm} UTC")}</p>
+           <p>{whenHtml}</p>
            <p class="code">{meeting.MeetingCode}</p>
            <a class="btn" href="{System.Net.WebUtility.HtmlEncode(deepLink)}">Open in Z+ app</a>
            <p class="hint">This opens the Z+ desktop app and takes you to the join screen. If nothing

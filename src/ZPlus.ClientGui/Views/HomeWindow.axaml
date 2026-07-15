@@ -44,18 +44,43 @@
                         <TextBlock Text="Schedule a meeting" FontSize="16" FontWeight="SemiBold"/>
                         <TextBlock Text="Topic" Classes="muted"/>
                         <TextBox Text="{Binding ScheduleTopic}"/>
-                        <Grid ColumnDefinitions="*,8,90,8,90">
+                        <Grid ColumnDefinitions="*,8,76,4,66,8,76">
                             <StackPanel Grid.Column="0" Spacing="4">
                                 <TextBlock Text="Date" Classes="muted"/>
                                 <CalendarDatePicker SelectedDate="{Binding ScheduleDate}" HorizontalAlignment="Stretch"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="4">
                                 <TextBlock Text="Time" Classes="muted"/>
-                                <TextBox Text="{Binding ScheduleTime}"/>
+                                <TextBox Text="{Binding ScheduleTime}" ToolTip.Tip="{Binding TimeHint}"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="4" Spacing="4">
+                            <StackPanel Grid.Column="4" Spacing="4" IsVisible="{Binding Is12HourTime}">
+                                <TextBlock Text="AM/PM" Classes="muted"/>
+                                <ComboBox ItemsSource="{Binding Meridiems}" SelectedItem="{Binding SelectedMeridiem}"
+                                          HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6" Spacing="4">
                                 <TextBlock Text="Minutes" Classes="muted"/>
                                 <TextBox Text="{Binding ScheduleDuration}"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,8,150">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Time zone" Classes="muted"/>
+                                <ComboBox ItemsSource="{Binding TimeZones}" SelectedItem="{Binding SelectedTimeZone}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="Time format" Classes="muted"/>
+                                <ComboBox ItemsSource="{Binding TimeFormats}" SelectedItem="{Binding SelectedTimeFormat}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                         </Grid>
                         <TextBlock Text="Password (optional)" Classes="muted"/>

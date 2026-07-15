@@ -171,7 +171,11 @@
                         </ScrollViewer>
                         <StackPanel Grid.Row="1">
                             <ComboBox ItemsSource="{Binding ChatRecipients}" SelectedItem="{Binding SelectedRecipient}"
-                                      DisplayMemberPath="Label" Margin="0,8,0,6"/>
+                                      Margin="0,8,0,6">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>

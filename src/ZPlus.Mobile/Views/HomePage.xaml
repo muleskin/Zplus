@@ -52,10 +52,22 @@
                             <DatePicker Date="{Binding ScheduleDate}" />
                         </VerticalStackLayout>
                         <VerticalStackLayout Grid.Column="2" Spacing="2">
-                            <Label Text="Time (HH:mm)" Style="{StaticResource Muted}" />
+                            <Label Text="{Binding TimeHint}" Style="{StaticResource Muted}" />
                             <Entry Text="{Binding ScheduleTime}" />
                         </VerticalStackLayout>
                     </Grid>
+                    <Grid ColumnDefinitions="*,8,*" ColumnSpacing="0" IsVisible="{Binding Is12HourTime}">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <Label Text="AM/PM" Style="{StaticResource Muted}" />
+                            <Picker ItemsSource="{Binding Meridiems}" SelectedItem="{Binding SelectedMeridiem}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Label Text="Time format" Style="{StaticResource Muted}" />
+                    <Picker ItemsSource="{Binding TimeFormats}" SelectedItem="{Binding SelectedTimeFormat}"
+                            ItemDisplayBinding="{Binding Label}" />
+                    <Label Text="Time zone" Style="{StaticResource Muted}" />
+                    <Picker ItemsSource="{Binding TimeZones}" SelectedItem="{Binding SelectedTimeZone}"
+                            ItemDisplayBinding="{Binding DisplayName}" />
                     <Label Text="Duration (minutes)" Style="{StaticResource Muted}" />
                     <Entry Text="{Binding ScheduleDuration}" Keyboard="Numeric" />
                     <Label Text="Password (optional)" Style="{StaticResource Muted}" />

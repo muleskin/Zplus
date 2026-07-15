@@ -39,10 +39,7 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
 
         // For a recurring reminder, show this occurrence's date rather than the series' first date.
         var startUtc = occurrenceStartUtc ?? meeting.ScheduledStartUtc;
-        string when = startUtc is null
-            ? "The meeting is running now."
-            : $"When: {startUtc.Value:dddd, MMMM d yyyy HH:mm} UTC" +
-              (meeting.DurationMinutes is int minutes ? $" ({minutes} minutes)" : "");
+        var duration = meeting.DurationMinutes is int minutes ? $" ({minutes} minutes)" : "";
 
         var body = new StringBuilder();
         body.AppendLine(isReminder
@@ -50,7 +47,18 @@ public class EmailService(SettingsService settings, ILogger<EmailService> logger
             : $"{hostDisplayName} has invited you to a Z+ meeting.");
         body.AppendLine();
         body.AppendLine($"Topic:      {meeting.Topic}");
-        body.AppendLine($"{when}");
+        if (startUtc is null)
+        {
+            body.AppendLine("When:       The meeting is running now.");
+        }
+        else
+        {
+            // Show the host's local wall-clock time, plus UTC so any region can convert exactly.
+            var w = MeetingTimeFormatter.Describe(startUtc.Value, meeting.HostTimeZoneId, meeting.Use24HourTime);
+            body.AppendLine($"When:       {w.Primary}{duration}");
+            if (w.Utc is not null)
+                body.AppendLine($"In UTC:     {w.Utc}");
+        }
         if (meeting.IsRecurring)
             body.AppendLine($"Repeats:    {meeting.RecurrencePattern}, {meeting.RecurrenceCount} occurrences (same meeting ID each time)");
         body.AppendLine($"Meeting ID: {meeting.MeetingCode}");

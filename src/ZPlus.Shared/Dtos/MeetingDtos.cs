@@ -11,7 +11,11 @@ public record CreateMeetingRequest(
     string RecurrencePattern = "None",
     int RecurrenceCount = 1,
     // How many minutes before each occurrence to email invitations (0 = send immediately).
-    int ReminderLeadMinutes = 0);
+    int ReminderLeadMinutes = 0,
+    // The zone/format the host scheduled in, so invitations can show their local time as well as UTC.
+    // Accepts a Windows ("Central Standard Time") or IANA ("America/Chicago") id.
+    string HostTimeZoneId = "",
+    bool Use24HourTime = false);
 
 /// <summary>
 /// Result of creating a meeting (or a recurring series). <see cref="Meeting"/> is the first
